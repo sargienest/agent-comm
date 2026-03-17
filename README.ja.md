@@ -2,7 +2,7 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` は、Codex / Claude 混在構成に対応した bash-first なマルチエージェントランナーです。対象プロジェクト配下に clone し、`agent-comm.ini.example` と `agents.ini.example` をコピーして設定を編集してから `start` を実行すると、runtime ファイルをプロジェクトルートへ散らさずに tmux agents とローカル dashboard を起動できます。
+`agent-comm` は、Codex / Claude を role ごとに切り替えられる bash-first なマルチエージェントランナーです。対象プロジェクト配下に clone し、`agent-comm.ini.example` と `agents.ini.example` をコピーして設定を編集してから `start` を実行すると、runtime ファイルをプロジェクトルートへ散らさずに tmux agents とローカル dashboard を起動できます。
 
 ![Dashboard overview](./docs/readme/dashboard-overview-ja.png)
 
@@ -16,6 +16,8 @@
 6. 使う runtime(claude/codex) にログインします。
 7. `bin/agent-comm start` を実行します。
 8. `start` または `status` で表示された dashboard URL を開きます。
+
+同梱の `agents.ini.example` は、初回起動で詰まりにくいよう Codex-only 構成にしています。混在構成にしたい場合は、使いたい section だけ `runtime = claude` へ切り替えてください。
 
 ## Public Commands
 

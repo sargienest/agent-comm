@@ -3,7 +3,7 @@ runtime = codex
 model =
 
 [task_author]
-runtime = claude
+runtime = codex
 model =
 
 [dispatcher]
@@ -11,11 +11,11 @@ runtime = codex
 model =
 
 [investigation]
-runtime = claude
+runtime = codex
 model =
 
 [analyst]
-runtime = claude
+runtime = codex
 model =
 
 [tester]
@@ -23,7 +23,7 @@ runtime = codex
 model =
 
 [implementer]
-runtime = claude
+runtime = codex
 model =
 count = 4
 

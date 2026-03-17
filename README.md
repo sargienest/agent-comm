@@ -2,7 +2,7 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` is a bash-first multi-agent runner for mixed Codex / Claude setups. Clone it under a target project, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the project root.
+`agent-comm` is a bash-first multi-agent runner for Codex / Claude setups with per-role runtime selection. Clone it under a target project, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the project root.
 
 ![Dashboard overview](./docs/readme/dashboard-overview.png)
 
@@ -16,6 +16,8 @@
 6. Log in to the runtimes you use.
 7. Run `bin/agent-comm start`.
 8. Open the dashboard URL printed by `start` or `status`.
+
+The shipped `agents.ini.example` stays Codex-only so the first launch works with one authenticated runtime. Switch any section to `claude` when you want a mixed topology.
 
 ## Public Commands
 
