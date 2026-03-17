@@ -2,7 +2,7 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` は、Codex / Claude を role ごとに切り替えられる bash-first なマルチエージェントランナーです。clone 先は任意で、`agent_working_dir` を対象プロジェクトや worktree に向けて設定し、`agent-comm.ini.example` と `agents.ini.example` をコピーして設定を編集してから `start` を実行すると、runtime ファイルを対象プロジェクトルートへ散らさずに tmux agents とローカル dashboard を起動できます。
+`agent-comm` は、Codex / Claude を role ごとに切り替えられる bash-first なマルチエージェントランナーです。clone 先は任意で、`working_dir` を対象プロジェクトや worktree に向けて設定し、`agent-comm.ini.example` と `agents.ini.example` をコピーして設定を編集してから `start` を実行すると、runtime ファイルを対象プロジェクトルートへ散らさずに tmux agents とローカル dashboard を起動できます。
 
 ![Dashboard overview](./docs/readme/dashboard-overview-ja.png)
 
@@ -13,7 +13,7 @@
 - `runtime = codex` を使うなら `codex`
 - `runtime = claude` を使うなら `claude`
 - `bin/agent-comm start` 前に、有効化した runtime それぞれでログイン済みであること
-- `agent_working_dir` に指定するディレクトリが、使う runtime 側で事前に trust 済みであること
+- `working_dir` に指定するディレクトリが、使う runtime 側で事前に trust 済みであること
 
 ## Quick Start
 
@@ -21,9 +21,9 @@
 2. `cd agent-comm` を実行します。
 3. `agent-comm.ini.example` を `agent-comm.ini` にコピーします。
 4. `agents.ini.example` を `agents.ini` にコピーします。
-5. `agent-comm.ini` を編集し、`runtime.agent_working_dir` を対象プロジェクトまたは worktree に設定します。
+5. `agent-comm.ini` を編集し、`runtime.working_dir` を対象プロジェクトまたは worktree に設定します。
 6. `agents.ini` を編集します。
-7. `agent_working_dir` に設定した path が、使う runtime 側で trust 済みであることを確認します。
+7. `working_dir` に設定した path が、使う runtime 側で trust 済みであることを確認します。
 8. 使う runtime (`claude` / `codex`) にログインします。
 9. `bin/agent-comm start` を実行します。
 10. `start` または `status` で表示された dashboard URL を開きます。
@@ -69,7 +69,7 @@
 
 | セクション | キー | 既定値 | 説明 |
 | --- | --- | --- | --- |
-| `runtime` | `agent_working_dir` | `../` | tmux pane と agent process の作業ディレクトリです。相対パスは `agent-comm.ini` 基準で解決されます。 |
+| `runtime` | `working_dir` | 空 | tmux pane と agent process の作業ディレクトリです。相対パスは `agent-comm.ini` 基準で解決されます。設定しないまま `start` すると失敗します。 |
 | `runtime` | `language` | `en` | agent 向け初期指示、role 解決、dispatcher 通知の既定言語です。`ui.language` が空なら dashboard もこの値を使います。 |
 | `runtime` | `codex_home` | `~/.codex` | Codex の設定と認証を置くディレクトリです。Claude は通常のユーザー認証を使います。 |
 | `runtime` | `dangerously_bypass_approvals_and_sandbox` | `false` | runtime ごとの無承認起動フラグを有効にします。Codex では `--dangerously-bypass-approvals-and-sandbox`、Claude では `--dangerously-skip-permissions` を付与します。 |

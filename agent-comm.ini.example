@@ -1,6 +1,6 @@
 [runtime]
-# Set this to the project/worktree the agents should operate in.
-agent_working_dir = ../
+# Set this before `start`. Leave it blank in the template.
+working_dir =
 language = en
 codex_home = ~/.codex
 dangerously_bypass_approvals_and_sandbox = false

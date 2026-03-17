@@ -2100,6 +2100,8 @@
         const taskDetailReadFiles = document.getElementById('taskDetailReadFiles');
         const taskDetailNotes = document.getElementById('taskDetailNotes');
 
+        ensureHistoryTracking(dispatcherHistory);
+
         function normalizeLanguage(value) {
             return String(value || '').trim().toLowerCase();
         }
@@ -2421,6 +2423,58 @@
             return statusLabelMap[normalized] || toText(value, 'unknown');
         }
 
+        function historyNearBottom(historyNode, threshold = 18) {
+            if (!(historyNode instanceof HTMLElement)) {
+                return true;
+            }
+
+            return (historyNode.scrollHeight - historyNode.scrollTop - historyNode.clientHeight) <= threshold;
+        }
+
+        function setHistoryAutoFollow(historyNode, enabled) {
+            if (!(historyNode instanceof HTMLElement)) {
+                return;
+            }
+
+            historyNode.dataset.autoFollow = enabled ? '1' : '0';
+        }
+
+        function historyAutoFollowEnabled(historyNode) {
+            if (!(historyNode instanceof HTMLElement)) {
+                return true;
+            }
+
+            if (historyNode.dataset.autoFollow === '1') {
+                return true;
+            }
+
+            if (historyNode.dataset.autoFollow === '0') {
+                return false;
+            }
+
+            return historyNearBottom(historyNode);
+        }
+
+        function ensureHistoryTracking(historyNode) {
+            if (!(historyNode instanceof HTMLElement)) {
+                return;
+            }
+
+            if (historyNode.dataset.historyTrackingBound === '1') {
+                return;
+            }
+
+            historyNode.dataset.historyTrackingBound = '1';
+            setHistoryAutoFollow(historyNode, true);
+            historyNode.addEventListener('scroll', () => {
+                const shouldFollow = historyNearBottom(historyNode);
+                setHistoryAutoFollow(historyNode, shouldFollow);
+                if (shouldFollow) {
+                    historyNode.dataset.initialViewAligned = '1';
+                }
+            });
+        }
+
         function forceHistoryToBottomOnce(historyNode) {
             if (!(historyNode instanceof HTMLElement)) {
                 return;
@@ -2432,6 +2486,7 @@
 
             const alignToBottom = () => {
                 historyNode.scrollTop = historyNode.scrollHeight;
+                setHistoryAutoFollow(historyNode, true);
             };
 
             historyNode.dataset.initialFollowDone = '1';
@@ -2454,6 +2509,7 @@
             }
 
             historyNode.scrollTop = historyNode.scrollHeight;
+            setHistoryAutoFollow(historyNode, true);
             const canConfirmAlignment = historyNode.clientHeight > 0;
             const atBottom = canConfirmAlignment &&
                 (historyNode.scrollHeight - historyNode.scrollTop - historyNode.clientHeight) <= 2;
@@ -2469,6 +2525,7 @@
                     if (!(historyNode instanceof HTMLElement)) {
                         continue;
                     }
+                    setHistoryAutoFollow(historyNode, true);
                     historyNode.scrollTop = historyNode.scrollHeight;
                     const canConfirmAlignment = historyNode.clientHeight > 0;
                     const atBottom = canConfirmAlignment &&
@@ -2479,6 +2536,8 @@
                 }
             };
 
+            requestAnimationFrame(alignVisibleHistoriesNow);
+            window.setTimeout(alignVisibleHistoriesNow, 0);
             window.setTimeout(alignVisibleHistoriesNow, 120);
             window.setTimeout(alignVisibleHistoriesNow, 500);
             window.setTimeout(alignVisibleHistoriesNow, 900);
@@ -2749,11 +2808,16 @@
                     visibleCount += 1;
                     if (wasVisible === false && cardElements.history instanceof HTMLElement) {
                         const savedScrollTop = Number(cardElements.lastVisibleScrollTop);
-                        if (Number.isFinite(savedScrollTop) && savedScrollTop > 0) {
+                        if (
+                            cardElements.history.dataset.initialViewAligned === '1' &&
+                            Number.isFinite(savedScrollTop) &&
+                            savedScrollTop > 0
+                        ) {
                             cardElements.history.scrollTop = savedScrollTop;
                         }
                     }
-                    if (cardElements.history?.dataset.initialViewAligned !== '1') {
+                    if (cardElements.history instanceof HTMLElement && cardElements.history.dataset.initialViewAligned !== '1') {
+                        setHistoryAutoFollow(cardElements.history, true);
                         needsInitialAlignment = true;
                     }
                 }
@@ -2841,6 +2905,7 @@
 
             const history = document.createElement('pre');
             history.className = 'history-box';
+            ensureHistoryTracking(history);
 
             const sendBox = document.createElement('div');
             sendBox.className = 'send-box';
@@ -2892,8 +2957,7 @@
 
         function syncHistoryScroll(historyNode, nextText) {
             const previousScrollTop = historyNode.scrollTop;
-            const previousScrollHeight = historyNode.scrollHeight;
-            const nearBottom = (previousScrollHeight - previousScrollTop - historyNode.clientHeight) <= 18;
+            const previousAutoFollow = historyAutoFollowEnabled(historyNode);
             const forcedFollowUntil = Number(historyNode.dataset.initialFollowUntil || '0');
 
             if (historyNode.textContent !== nextText) {
@@ -2907,15 +2971,18 @@
 
             if (forcedFollowUntil > Date.now()) {
                 historyNode.scrollTop = historyNode.scrollHeight;
+                setHistoryAutoFollow(historyNode, true);
                 return;
             }
 
-            if (nearBottom) {
+            if (previousAutoFollow) {
                 historyNode.scrollTop = historyNode.scrollHeight;
+                setHistoryAutoFollow(historyNode, true);
                 return;
             }
 
             historyNode.scrollTop = previousScrollTop;
+            setHistoryAutoFollow(historyNode, false);
         }
 
         function resolveTmuxHistoryText(agent) {
