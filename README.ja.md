@@ -16,14 +16,15 @@
 
 ## Quick Start
 
-1. このリポジトリを `<project>/agent-comm` に clone します。
-2. `agent-comm.ini.example` を `agent-comm.ini` にコピーします。
-3. `agents.ini.example` を `agents.ini` にコピーします。
-4. `agent-comm.ini` を編集します。
-5. `agents.ini` を編集します。
-6. 使う runtime(claude/codex) にログインします。
-7. `bin/agent-comm start` を実行します。
-8. `start` または `status` で表示された dashboard URL を開きます。
+1. プロジェクト直下で `git clone https://github.com/sargienest/agent-comm.git` を実行します。
+2. `cd agent-comm` を実行します。
+3. `agent-comm.ini.example` を `agent-comm.ini` にコピーします。
+4. `agents.ini.example` を `agents.ini` にコピーします。
+5. `agent-comm.ini` を編集します。
+6. `agents.ini` を編集します。
+7. 使う runtime (`claude` / `codex`) にログインします。
+8. `bin/agent-comm start` を実行します。
+9. `start` または `status` で表示された dashboard URL を開きます。
 
 同梱の `agents.ini.example` は、初回起動で詰まりにくいよう Codex-only 構成にしています。混在構成にしたい場合は、使いたい section だけ `runtime = claude` へ切り替えてください。
 
