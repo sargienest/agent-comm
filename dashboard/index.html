@@ -712,8 +712,10 @@
         }
 
         .workers {
-            display: grid;
+            display: flex;
+            flex-wrap: wrap;
             gap: 8px;
+            align-items: stretch;
             min-width: 0;
         }
 
@@ -1312,6 +1314,10 @@
             display: grid;
             gap: 9px;
             min-width: 0;
+        }
+
+        .agent-console-card[hidden] {
+            display: none;
         }
 
         .agent-console-top {
@@ -2370,6 +2376,78 @@
             return t(`chip.${normalized}`, {}, toText(value, 'unknown'));
         }
 
+        function forceHistoryToBottomOnce(historyNode) {
+            if (!(historyNode instanceof HTMLElement)) {
+                return;
+            }
+
+            if (historyNode.dataset.initialFollowDone === '1') {
+                return;
+            }
+
+            const alignToBottom = () => {
+                historyNode.scrollTop = historyNode.scrollHeight;
+            };
+
+            historyNode.dataset.initialFollowDone = '1';
+            historyNode.dataset.initialFollowUntil = String(Date.now() + 1200);
+            alignToBottom();
+            requestAnimationFrame(alignToBottom);
+            window.setTimeout(alignToBottom, 0);
+            window.setTimeout(alignToBottom, 120);
+            window.setTimeout(alignToBottom, 420);
+            window.setTimeout(alignToBottom, 900);
+        }
+
+        function alignHistoryToBottomOnFirstView(historyNode) {
+            if (!(historyNode instanceof HTMLElement)) {
+                return;
+            }
+
+            if (historyNode.dataset.initialViewAligned === '1') {
+                return;
+            }
+
+            historyNode.scrollTop = historyNode.scrollHeight;
+            const canConfirmAlignment = historyNode.clientHeight > 0;
+            const atBottom = canConfirmAlignment &&
+                (historyNode.scrollHeight - historyNode.scrollTop - historyNode.clientHeight) <= 2;
+            if (atBottom) {
+                historyNode.dataset.initialViewAligned = '1';
+            }
+        }
+
+        function scheduleVisibleTerminalHistoryAlignment() {
+            const alignVisibleHistoriesNow = () => {
+                const visibleHistories = document.querySelectorAll('.agent-console-card:not([hidden]) .history-box');
+                for (const historyNode of visibleHistories) {
+                    if (!(historyNode instanceof HTMLElement)) {
+                        continue;
+                    }
+                    historyNode.scrollTop = historyNode.scrollHeight;
+                    const canConfirmAlignment = historyNode.clientHeight > 0;
+                    const atBottom = canConfirmAlignment &&
+                        (historyNode.scrollHeight - historyNode.scrollTop - historyNode.clientHeight) <= 2;
+                    if (atBottom) {
+                        historyNode.dataset.initialViewAligned = '1';
+                    }
+                }
+            };
+
+            window.setTimeout(alignVisibleHistoriesNow, 120);
+            window.setTimeout(alignVisibleHistoriesNow, 500);
+            window.setTimeout(alignVisibleHistoriesNow, 900);
+        }
+
+        function displaySessionLabel(value) {
+            const text = toText(value, '-');
+            if (text === '-') {
+                return text;
+            }
+            const trimmed = text.replace(/^agent-comm-/, '');
+            return trimmed === '' ? text : trimmed;
+        }
+
         function createChip(value) {
             const span = document.createElement('span');
             span.className = chipClass(value);
@@ -2582,9 +2660,29 @@
             return section === normalizedGroup;
         }
 
+        function alignVisibleTerminalHistories() {
+            const visibleHistories = document.querySelectorAll('.agent-console-card:not([hidden]) .history-box');
+
+            for (const historyNode of visibleHistories) {
+                if (!(historyNode instanceof HTMLElement)) {
+                    continue;
+                }
+
+                const forcedFollowUntil = Number(historyNode.dataset.initialFollowUntil || '0');
+                if (historyNode.dataset.initialFollowDone !== '1') {
+                    forceHistoryToBottomOnce(historyNode);
+                }
+                if (forcedFollowUntil > Date.now()) {
+                    historyNode.scrollTop = historyNode.scrollHeight;
+                }
+                alignHistoryToBottomOnFirstView(historyNode);
+            }
+        }
+
         function applyTerminalGroupVisibility() {
             const activeGroup = normalizeTerminalGroup(state.activeTerminalGroup);
             let visibleCount = 0;
+            let needsInitialAlignment = false;
 
             for (const agent of state.tmuxAgents) {
                 const agentId = toText(agent?.id, '');
@@ -2597,10 +2695,23 @@
                     continue;
                 }
 
+                const wasVisible = !cardElements.card.hidden;
                 const isVisible = terminalGroupMatchesAgent(activeGroup, agent);
+                if (!isVisible && wasVisible && cardElements.history instanceof HTMLElement) {
+                    cardElements.lastVisibleScrollTop = cardElements.history.scrollTop;
+                }
                 cardElements.card.hidden = !isVisible;
                 if (isVisible) {
                     visibleCount += 1;
+                    if (wasVisible === false && cardElements.history instanceof HTMLElement) {
+                        const savedScrollTop = Number(cardElements.lastVisibleScrollTop);
+                        if (Number.isFinite(savedScrollTop) && savedScrollTop > 0) {
+                            cardElements.history.scrollTop = savedScrollTop;
+                        }
+                    }
+                    if (cardElements.history?.dataset.initialViewAligned !== '1') {
+                        needsInitialAlignment = true;
+                    }
                 }
             }
 
@@ -2608,6 +2719,10 @@
                 const hasAgents = state.tmuxAgents.length > 0;
                 tmuxConsoleGroupEmpty.hidden = !hasAgents || visibleCount > 0;
                 tmuxConsoleGroupEmpty.textContent = t('terminal.group.empty', {}, 'No agent terminals in this group.');
+            }
+
+            if (needsInitialAlignment) {
+                scheduleVisibleTerminalHistoryAlignment();
             }
         }
 
@@ -2727,6 +2842,7 @@
                 input,
                 feedback,
                 sendButton,
+                lastVisibleScrollTop: null,
             };
         }
 
@@ -2734,9 +2850,20 @@
             const previousScrollTop = historyNode.scrollTop;
             const previousScrollHeight = historyNode.scrollHeight;
             const nearBottom = (previousScrollHeight - previousScrollTop - historyNode.clientHeight) <= 18;
+            const forcedFollowUntil = Number(historyNode.dataset.initialFollowUntil || '0');
 
             if (historyNode.textContent !== nextText) {
                 historyNode.textContent = nextText;
+            }
+
+            if (historyNode.dataset.initialFollowDone !== '1' && historyNode.closest('[hidden]') === null) {
+                forceHistoryToBottomOnce(historyNode);
+                return;
+            }
+
+            if (forcedFollowUntil > Date.now()) {
+                historyNode.scrollTop = historyNode.scrollHeight;
+                return;
             }
 
             if (nearBottom) {
@@ -2744,8 +2871,7 @@
                 return;
             }
 
-            const heightDelta = historyNode.scrollHeight - previousScrollHeight;
-            historyNode.scrollTop = Math.max(0, previousScrollTop + Math.max(0, heightDelta));
+            historyNode.scrollTop = previousScrollTop;
         }
 
         function resolveTmuxHistoryText(agent) {
@@ -2855,7 +2981,7 @@
 
             dispatcherError.hidden = true;
             dispatcherError.textContent = '';
-            dispatcherMeta.textContent = `${session} / ${generatedAt}`;
+            dispatcherMeta.textContent = `${displaySessionLabel(session)} / ${generatedAt}`;
 
             dispatcherChips.innerHTML = '';
             if (!agent) {
@@ -2902,7 +3028,7 @@
                 tmuxError.textContent = '';
             }
             if (tmuxMeta instanceof HTMLElement) {
-                tmuxMeta.textContent = `${session} / ${generatedAt}`;
+                tmuxMeta.textContent = `${displaySessionLabel(session)} / ${generatedAt}`;
             }
 
             const agents = Array.isArray(payload.agents) ? payload.agents : [];
@@ -3038,7 +3164,7 @@
             const reviewCounts = reviews.counts || {};
             const reviewCycle = runtime.review_cycle || {};
 
-            setText('sessionValue', runtime.session || '-', '-');
+            setText('sessionValue', displaySessionLabel(runtime.session || '-'), '-');
             setText('startedAtValue', t('summary.started_at', {
                 time: formatDateTime(runtime.started_at),
             }, `started: ${formatDateTime(runtime.started_at)}`));
@@ -3087,35 +3213,51 @@
             const workers = (snapshot.runtime && Array.isArray(snapshot.runtime.workers)) ?
                 snapshot.runtime.workers :
                 [];
+            const taskAuthorState = toText(snapshot.runtime?.task_author, 'unknown');
             const previousWorkerStateMap = state.workerStateMap;
             const hasPreviousWorkerStates = Object.keys(previousWorkerStateMap).length > 0;
             const nextWorkerStateMap = {};
-            const workerGroups = [
+            const sectionOrder = {
+                task_author: 0,
+                investigation: 1,
+                analyst: 2,
+                tester: 3,
+                implementer: 4,
+                reviewer: 5,
+            };
+            const overviewAgents = [
                 {
-                    key: 'specialists',
-                    label: t('workers.group.specialists', {}, 'Investigation / Analyst / Tester'),
-                    sections: ['investigation', 'analyst', 'tester'],
+                    id: 'task_author',
+                    label: t('terminal.group.task_author', {}, 'Task Author'),
+                    section: 'task_author',
+                    runtime: '',
+                    model: '',
+                    persona: '',
+                    state: taskAuthorState,
                 },
-                {
-                    key: 'implementer',
-                    label: t('workers.group.implementer', {}, 'Implementer'),
-                    sections: ['implementer'],
-                },
-                {
-                    key: 'reviewer',
-                    label: t('workers.group.reviewer', {}, 'Reviewer'),
-                    sections: ['reviewer'],
-                },
-            ];
+                ...workers,
+            ].sort((left, right) => {
+                const leftSection = normalizeToken(left.section || left.id || '', 'unknown');
+                const rightSection = normalizeToken(right.section || right.id || '', 'unknown');
+                const leftRank = sectionOrder[leftSection] ?? 99;
+                const rightRank = sectionOrder[rightSection] ?? 99;
+                if (leftRank !== rightRank) {
+                    return leftRank - rightRank;
+                }
+                return toText(left.label, left.id).localeCompare(toText(right.label, right.id), undefined, {
+                    numeric: true,
+                    sensitivity: 'base',
+                });
+            });
 
             document.getElementById('workerCount').textContent = t('workers.count', {
-                count: workers.length,
-            }, `${workers.length} agents`);
+                count: overviewAgents.length,
+            }, `${overviewAgents.length} agents`);
 
             preserveScroll(workersNode, () => {
                 workersNode.innerHTML = '';
 
-                if (workers.length === 0) {
+                if (overviewAgents.length === 0) {
                     const empty = document.createElement('div');
                     empty.className = 'muted';
                     empty.textContent = t('workers.empty', {}, 'agent情報なし');
@@ -3123,81 +3265,45 @@
                     return;
                 }
 
-                for (const group of workerGroups) {
-                    const groupWorkers = workers.filter((worker) => {
-                        const section = normalizeToken(worker.section || worker.persona || '', '');
-                        return group.sections.includes(section);
-                    });
+                for (const worker of overviewAgents) {
+                    const workerId = toText(worker.id, 'worker?');
+                    const workerState = toText(worker.state, 'unknown');
+                    const row = document.createElement('div');
+                    row.className = `worker-row state-${normalizeToken(workerState, 'unknown')}`;
 
-                    if (groupWorkers.length === 0) {
-                        continue;
+                    const previousState = previousWorkerStateMap[workerId];
+                    if (
+                        hasPreviousWorkerStates &&
+                        typeof previousState === 'string' &&
+                        previousState !== workerState
+                    ) {
+                        row.classList.add('state-shift');
                     }
 
-                    const groupNode = document.createElement('section');
-                    groupNode.className = 'worker-group';
+                    const left = document.createElement('div');
+                    left.className = 'worker-row-main';
+                    const strong = document.createElement('strong');
+                    strong.textContent = toText(worker.label, workerId);
+                    left.appendChild(strong);
 
-                    const head = document.createElement('div');
-                    head.className = 'worker-group-head';
+                    const workerMeta = document.createElement('span');
+                    workerMeta.className = 'muted';
+                    workerMeta.textContent = [toText(worker.id, '-'), toText(worker.runtime, ''), toText(worker.model, '')]
+                        .filter((value) => value !== '')
+                        .join(' / ');
+                    left.appendChild(workerMeta);
 
-                    const label = document.createElement('strong');
-                    label.className = 'worker-group-label';
-                    label.textContent = group.label;
-                    head.appendChild(label);
-
-                    const meta = document.createElement('span');
-                    meta.className = 'worker-group-meta';
-                    meta.textContent = t('workers.count', {
-                        count: groupWorkers.length,
-                    }, `${groupWorkers.length} agents`);
-                    head.appendChild(meta);
-
-                    const groupGrid = document.createElement('div');
-                    groupGrid.className = 'worker-group-grid';
-
-                    for (const worker of groupWorkers) {
-                        const workerId = toText(worker.id, 'worker?');
-                        const workerState = toText(worker.state, 'unknown');
-                        const row = document.createElement('div');
-                        row.className = `worker-row state-${normalizeToken(workerState, 'unknown')}`;
-
-                        const previousState = previousWorkerStateMap[workerId];
-                        if (
-                            hasPreviousWorkerStates &&
-                            typeof previousState === 'string' &&
-                            previousState !== workerState
-                        ) {
-                            row.classList.add('state-shift');
-                        }
-
-                        const left = document.createElement('div');
-                        left.className = 'worker-row-main';
-                        const strong = document.createElement('strong');
-                        strong.textContent = toText(worker.label, workerId);
-                        left.appendChild(strong);
-
-                        const workerMeta = document.createElement('span');
-                        workerMeta.className = 'muted';
-                        workerMeta.textContent = [toText(worker.id, '-'), toText(worker.runtime, '-'), toText(worker.model, '')]
-                            .filter((value) => value !== '')
-                            .join(' / ');
-                        left.appendChild(workerMeta);
-
-                        const right = document.createElement('div');
-                        right.className = 'chips';
-                        right.appendChild(createChip(workerState));
-                        if (toText(worker.persona, '') !== '') {
-                            right.appendChild(createChip(worker.persona));
-                        }
-
-                        row.appendChild(left);
-                        row.appendChild(right);
-                        groupGrid.appendChild(row);
-                        nextWorkerStateMap[workerId] = workerState;
+                    const right = document.createElement('div');
+                    right.className = 'chips';
+                    right.appendChild(createChip(workerState));
+                    if (toText(worker.persona, '') !== '') {
+                        right.appendChild(createChip(worker.persona));
                     }
 
-                    groupNode.appendChild(head);
-                    groupNode.appendChild(groupGrid);
-                    workersNode.appendChild(groupNode);
+                    row.appendChild(left);
+                    row.appendChild(right);
+                    workersNode.appendChild(row);
+                    nextWorkerStateMap[workerId] = workerState;
                 }
             }, {
                 adjustForGrowth: true,
