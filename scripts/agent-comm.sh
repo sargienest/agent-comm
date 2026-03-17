@@ -28,7 +28,8 @@ require_command() {
 cmd_validate_config() {
     require_command tmux
 
-    [ -d "$AC_AGENT_WORKING_DIR" ] || ac_fail "runtime.agent_working_dir was not found: ${AC_AGENT_WORKING_DIR}"
+    [ -n "$AC_AGENT_WORKING_DIR" ] || ac_fail "runtime.working_dir is required."
+    [ -d "$AC_AGENT_WORKING_DIR" ] || ac_fail "runtime.working_dir was not found: ${AC_AGENT_WORKING_DIR}"
     mkdir -p "$AC_ROLES_PATH/en/personas" "$AC_ROLES_PATH/ja/personas"
     while IFS= read -r runtime; do
         [ -n "$runtime" ] || continue

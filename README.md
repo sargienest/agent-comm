@@ -2,7 +2,7 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` is a bash-first multi-agent runner for Codex / Claude setups with per-role runtime selection. Clone it wherever you want, point `agent_working_dir` at the target project or worktree, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the target project root.
+`agent-comm` is a bash-first multi-agent runner for Codex / Claude setups with per-role runtime selection. Clone it wherever you want, point `working_dir` at the target project or worktree, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the target project root.
 
 ![Dashboard overview](./docs/readme/dashboard-overview.png)
 
@@ -13,7 +13,7 @@
 - `codex` for `runtime = codex`
 - `claude` for `runtime = claude`
 - An authenticated session for each enabled runtime before `bin/agent-comm start`
-- The directory you set in `agent_working_dir` must already be trusted by the runtimes you use
+- The directory you set in `working_dir` must already be trusted by the runtimes you use
 
 ## Quick Start
 
@@ -21,9 +21,9 @@
 2. Run `cd agent-comm`.
 3. Copy `agent-comm.ini.example` to `agent-comm.ini`.
 4. Copy `agents.ini.example` to `agents.ini`.
-5. Edit `agent-comm.ini` and set `runtime.agent_working_dir` to the target project or worktree.
+5. Edit `agent-comm.ini` and set `runtime.working_dir` to the target project or worktree.
 6. Edit `agents.ini`.
-7. Make sure the `agent_working_dir` path is already trusted by the runtimes you use.
+7. Make sure the `working_dir` path is already trusted by the runtimes you use.
 8. Log in to the runtimes you use.
 9. Run `bin/agent-comm start`.
 10. Open the dashboard URL printed by `start` or `status`.
@@ -69,7 +69,7 @@ All generated data stays inside `agent-comm/.runtime/`.
 
 | Section | Key | Default | Description |
 | --- | --- | --- | --- |
-| `runtime` | `agent_working_dir` | `../` | Working directory used for tmux panes and agent processes. Relative paths are resolved from `agent-comm.ini`. |
+| `runtime` | `working_dir` | empty | Working directory used for tmux panes and agent processes. Relative paths are resolved from `agent-comm.ini`. `start` fails until you set it. |
 | `runtime` | `language` | `en` | Default language for agent-facing prompts, role resolution, and dispatcher notifications. If `ui.language` is blank, the dashboard also uses this value. |
 | `runtime` | `codex_home` | `~/.codex` | Codex config and auth directory. Claude uses its normal user auth store. |
 | `runtime` | `dangerously_bypass_approvals_and_sandbox` | `false` | Enables runtime-specific no-approval launch flags. For Codex this adds `--dangerously-bypass-approvals-and-sandbox`. For Claude this adds `--dangerously-skip-permissions`. |

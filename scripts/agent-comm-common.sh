@@ -424,12 +424,19 @@ ac_load_agent_topology() {
 }
 
 ac_load_config() {
+    local configured_working_dir
+
     AC_REPO_ROOT="$(ac_repo_root)"
     AC_INI_PATH="$(ac_ini_path)"
     AC_AGENTS_INI_PATH="$(ac_agents_ini_path)"
     AC_RUNTIME_ROOT="${AC_REPO_ROOT}/.runtime"
 
-    AC_AGENT_WORKING_DIR="$(ac_resolve_config_path "$(ac_ini_get runtime agent_working_dir ../)")"
+    configured_working_dir="$(ac_trim "$(ac_ini_get runtime working_dir '')")"
+    if [ -n "$configured_working_dir" ]; then
+        AC_AGENT_WORKING_DIR="$(ac_resolve_config_path "$configured_working_dir")"
+    else
+        AC_AGENT_WORKING_DIR=""
+    fi
     AC_RUNTIME_LANGUAGE="$(ac_normalize_language "$(ac_ini_get runtime language '')")"
     AC_CODEX_HOME="$(ac_resolve_config_path "$(ac_ini_get runtime codex_home '~/.codex')")"
     AC_CODEX_DANGEROUS="$(ac_parse_bool "$(ac_ini_get runtime dangerously_bypass_approvals_and_sandbox false)")"
