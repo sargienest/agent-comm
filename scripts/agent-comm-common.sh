@@ -1593,11 +1593,8 @@ ac_render_command_notify_message() {
     local command_file="$1"
     local command_text="$2"
     ac_t_format "message.command_pending" \
-        "common_role=$(ac_role_path common)" \
         "task_author_role=$(ac_role_path task_author)" \
         "command_file=${command_file}" \
-        "personas_manifest=${ROLE_PERSONAS_MARKDOWN_FILE}" \
-        "repo_root=${AC_REPO_ROOT}" \
         "command_text=${command_text}"
 }
 
@@ -1627,6 +1624,13 @@ ac_render_report_research_complete_message() {
         "result=${result}" \
         "command_id=${command_id}" \
         "artifact=${artifact}"
+}
+
+ac_render_report_research_summary_message() {
+    local summary_lines="$1"
+    ac_t_format "message.report_research_summary" \
+        "task_author_role=$(ac_role_path task_author)" \
+        "summary_lines=${summary_lines}"
 }
 
 ac_render_report_tester_update_message() {
