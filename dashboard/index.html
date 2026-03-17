@@ -1874,6 +1874,15 @@
                     <h2 data-i18n="terminal.title">Agent Terminal Live</h2>
                     <span class="muted" id="tmuxMeta">-</span>
                 </div>
+                <div class="overview-mode-tabs">
+                    <button type="button" class="mode-btn active" data-terminal-group-button="coordinator" data-i18n="terminal.group.coordinator">Coordinator</button>
+                    <button type="button" class="mode-btn" data-terminal-group-button="task_author" data-i18n="terminal.group.task_author">Task Author</button>
+                    <button type="button" class="mode-btn" data-terminal-group-button="research" data-i18n="terminal.group.research">Research</button>
+                    <button type="button" class="mode-btn" data-terminal-group-button="tester" data-i18n="terminal.group.tester">Tester</button>
+                    <button type="button" class="mode-btn" data-terminal-group-button="implementer" data-i18n="terminal.group.implementer">Implementer</button>
+                    <button type="button" class="mode-btn" data-terminal-group-button="reviewer" data-i18n="terminal.group.reviewer">Reviewer</button>
+                </div>
+                <div id="tmuxConsoleGroupEmpty" class="muted" hidden></div>
                 <div id="tmuxConsoleGrid" class="agent-console-grid"></div>
                 <div id="tmuxError" class="warning" hidden></div>
             </section>
@@ -1992,8 +2001,10 @@
             tmuxTimer: null,
             tmuxDrafts: {},
             tmuxCards: {},
+            tmuxAgents: [],
             overviewMode: 'ops',
             activeTab: 'overview',
+            activeTerminalGroup: 'coordinator',
             workerStateMap: {},
             timelineSignatures: new Set(),
             timelineInitialized: false,
@@ -2016,7 +2027,9 @@
         const overviewModeButtons = document.querySelectorAll('[data-overview-mode-button]');
         const overviewModeOps = document.getElementById('overviewModeOps');
         const overviewModeHistory = document.getElementById('overviewModeHistory');
+        const terminalGroupButtons = document.querySelectorAll('[data-terminal-group-button]');
         const tmuxConsoleGrid = document.getElementById('tmuxConsoleGrid');
+        const tmuxConsoleGroupEmpty = document.getElementById('tmuxConsoleGroupEmpty');
         const tmuxMeta = document.getElementById('tmuxMeta');
         const tmuxError = document.getElementById('tmuxError');
         const dispatcherMeta = document.getElementById('dispatcherMeta');
@@ -2553,6 +2566,63 @@
             return typeof draft === 'string' ? draft : '';
         }
 
+        function normalizeTerminalGroup(groupName) {
+            const normalized = normalizeToken(groupName, 'coordinator');
+            return ['coordinator', 'task_author', 'research', 'tester', 'implementer', 'reviewer'].includes(normalized) ?
+                normalized :
+                'coordinator';
+        }
+
+        function terminalGroupMatchesAgent(groupName, agent) {
+            const normalizedGroup = normalizeTerminalGroup(groupName);
+            const section = normalizeToken(agent?.section || agent?.id || '', '');
+            if (normalizedGroup === 'research') {
+                return section === 'investigation' || section === 'analyst';
+            }
+            return section === normalizedGroup;
+        }
+
+        function applyTerminalGroupVisibility() {
+            const activeGroup = normalizeTerminalGroup(state.activeTerminalGroup);
+            let visibleCount = 0;
+
+            for (const agent of state.tmuxAgents) {
+                const agentId = toText(agent?.id, '');
+                if (agentId === '' || agentId === 'dispatcher') {
+                    continue;
+                }
+
+                const cardElements = state.tmuxCards[agentId];
+                if (!(cardElements?.card instanceof HTMLElement)) {
+                    continue;
+                }
+
+                const isVisible = terminalGroupMatchesAgent(activeGroup, agent);
+                cardElements.card.hidden = !isVisible;
+                if (isVisible) {
+                    visibleCount += 1;
+                }
+            }
+
+            if (tmuxConsoleGroupEmpty instanceof HTMLElement) {
+                const hasAgents = state.tmuxAgents.length > 0;
+                tmuxConsoleGroupEmpty.hidden = !hasAgents || visibleCount > 0;
+                tmuxConsoleGroupEmpty.textContent = t('terminal.group.empty', {}, 'No agent terminals in this group.');
+            }
+        }
+
+        function activateTerminalGroup(groupName) {
+            const normalizedGroup = normalizeTerminalGroup(groupName);
+            state.activeTerminalGroup = normalizedGroup;
+
+            for (const button of terminalGroupButtons) {
+                const isActive = normalizeTerminalGroup(button.dataset.terminalGroupButton || 'coordinator') === normalizedGroup;
+                button.classList.toggle('active', isActive);
+            }
+
+            applyTerminalGroupVisibility();
+        }
+
         function activateTab(tabName) {
             const normalizedTab = ['terminal', 'dispatcher'].includes(tabName) ? tabName : 'overview';
             state.activeTab = normalizedTab;
@@ -2661,11 +2731,21 @@
         }
 
         function syncHistoryScroll(historyNode, nextText) {
+            const previousScrollTop = historyNode.scrollTop;
+            const previousScrollHeight = historyNode.scrollHeight;
+            const nearBottom = (previousScrollHeight - previousScrollTop - historyNode.clientHeight) <= 18;
+
             if (historyNode.textContent !== nextText) {
                 historyNode.textContent = nextText;
             }
 
-            historyNode.scrollTop = historyNode.scrollHeight;
+            if (nearBottom) {
+                historyNode.scrollTop = historyNode.scrollHeight;
+                return;
+            }
+
+            const heightDelta = historyNode.scrollHeight - previousScrollHeight;
+            historyNode.scrollTop = Math.max(0, previousScrollTop + Math.max(0, heightDelta));
         }
 
         function resolveTmuxHistoryText(agent) {
@@ -2830,6 +2910,7 @@
             renderDispatcherAgent(dispatcherAgent, session, generatedAt);
 
             if (agents.length === 0) {
+                state.tmuxAgents = [];
                 for (const cardId of Object.keys(state.tmuxCards)) {
                     const cardElements = state.tmuxCards[cardId];
                     if (cardElements?.card instanceof HTMLElement) {
@@ -2837,6 +2918,10 @@
                     }
 
                     delete state.tmuxCards[cardId];
+                }
+                if (tmuxConsoleGroupEmpty instanceof HTMLElement) {
+                    tmuxConsoleGroupEmpty.hidden = true;
+                    tmuxConsoleGroupEmpty.textContent = '';
                 }
                 return;
             }
@@ -2847,6 +2932,7 @@
             }
 
             const consoleAgents = agents.filter((agent) => toText(agent?.id, '') !== 'dispatcher');
+            state.tmuxAgents = consoleAgents;
             const seenIds = new Set();
             for (const agent of consoleAgents) {
                 const agentId = toText(agent.id, '');
@@ -2907,6 +2993,8 @@
                     }
                 }
             }
+
+            applyTerminalGroupVisibility();
         }
 
         async function refreshTmuxSnapshot() {
@@ -2971,12 +3059,16 @@
                 done: reviewCounts.done ?? 0,
             }, `pending ${reviewCounts.pending ?? 0} / done ${reviewCounts.done ?? 0}`));
 
-            setText('coordinatorValue', runtime.coordinator ?? '-');
-            setText('taskAuthorValue', t('summary.task_author', {
-                state: toText(runtime.task_author, '-'),
-            }, `task_author: ${toText(runtime.task_author, '-')}`));
+            const coordinatorState = toText(runtime.coordinator, '-');
+            const taskAuthorState = toText(runtime.task_author, '-');
+            const dispatcherState = toText(runtime.dispatcher, '-');
 
-            setText('dispatcherValue', runtime.dispatcher ?? '-');
+            setText('coordinatorValue', chipLabel(coordinatorState), coordinatorState);
+            setText('taskAuthorValue', t('summary.task_author', {
+                state: chipLabel(taskAuthorState),
+            }, `task_author: ${taskAuthorState}`));
+
+            setText('dispatcherValue', chipLabel(dispatcherState), dispatcherState);
             setText(
                 'reviewCycleValue',
                 t('summary.review_cycle', {
@@ -3744,6 +3836,12 @@
             });
         }
 
+        for (const button of terminalGroupButtons) {
+            button.addEventListener('click', () => {
+                activateTerminalGroup(button.dataset.terminalGroupButton || 'coordinator');
+            });
+        }
+
         for (const closeTrigger of document.querySelectorAll('[data-task-modal-close="1"]')) {
             closeTrigger.addEventListener('click', () => {
                 closeTaskDetailModal();
@@ -3774,6 +3872,7 @@
             connectStream();
             activateTab('overview');
             activateOverviewMode('ops');
+            activateTerminalGroup('coordinator');
             refreshTmuxSnapshot();
 
             state.fallbackTimer = window.setInterval(() => {

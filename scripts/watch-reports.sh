@@ -115,6 +115,157 @@ is_worker_busy() {
     return 1
 }
 
+is_research_task_type() {
+    local task_type="$1"
+    [ "$task_type" = "investigation" ] || [ "$task_type" = "analyst" ]
+}
+
+has_active_research_tasks_for_command() {
+    local target_command_id="$1"
+    local task_file task_type command_id
+
+    [ -z "$target_command_id" ] && return 1
+
+    for task_file in "$TASK_PENDING_DIR"/*.yaml "$TASK_INFLIGHT_DIR"/*.yaml "$TASK_BLOCKED_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_type=$(ac_read_yaml_scalar "$task_file" "type")
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        if is_research_task_type "$task_type" && [ "$command_id" = "$target_command_id" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+has_done_research_tasks_for_command() {
+    local target_command_id="$1"
+    local task_file task_type command_id
+
+    [ -z "$target_command_id" ] && return 1
+
+    for task_file in "$TASK_DONE_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_type=$(ac_read_yaml_scalar "$task_file" "type")
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        if is_research_task_type "$task_type" && [ "$command_id" = "$target_command_id" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+has_active_primary_tasks_for_command() {
+    local target_command_id="$1"
+    local task_file task_type command_id
+
+    [ -z "$target_command_id" ] && return 1
+
+    for task_file in "$TASK_PENDING_DIR"/*.yaml "$TASK_INFLIGHT_DIR"/*.yaml "$TASK_BLOCKED_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_type=$(ac_read_yaml_scalar "$task_file" "type")
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        if [ "$command_id" = "$target_command_id" ] && ! is_research_task_type "$task_type"; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+has_active_reviews_for_command() {
+    local target_command_id="$1"
+    local review_file command_id
+
+    [ -z "$target_command_id" ] && return 1
+
+    for review_file in "$REVIEW_PENDING_DIR"/*.yaml "$REVIEW_INFLIGHT_DIR"/*.yaml; do
+        [ -f "$review_file" ] || continue
+        command_id=$(ac_read_yaml_scalar "$review_file" "command_id")
+        if [ "$command_id" = "$target_command_id" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+has_unnotified_research_results() {
+    local report_file persona key
+
+    for report_file in "$REPORT_EVENTS_DIR"/*.yaml; do
+        [ -f "$report_file" ] || continue
+        persona=$(ac_read_yaml_scalar "$report_file" "persona")
+        if ! is_research_task_type "$persona"; then
+            continue
+        fi
+        key="$(basename "$report_file")"
+        if ! set_contains_line "$REPORT_NOTIFY_STATE_FILE" "$key"; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+has_unnotified_research_results_for_command() {
+    local target_command_id="$1"
+    local report_file persona command_id key
+
+    [ -z "$target_command_id" ] && return 1
+
+    for report_file in "$REPORT_EVENTS_DIR"/*.yaml; do
+        [ -f "$report_file" ] || continue
+        persona=$(ac_read_yaml_scalar "$report_file" "persona")
+        if ! is_research_task_type "$persona"; then
+            continue
+        fi
+        command_id=$(ac_read_yaml_scalar "$report_file" "command_id")
+        [ "$command_id" = "$target_command_id" ] || continue
+        key="$(basename "$report_file")"
+        if ! set_contains_line "$REPORT_NOTIFY_STATE_FILE" "$key"; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+worker_state_for_agent() {
+    local worker_id="$1"
+    local task_file assigned_to
+
+    for task_file in "${TASK_INFLIGHT_DIR}"/*.yaml "${REVIEW_INFLIGHT_DIR}"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        assigned_to=$(ac_read_yaml_scalar "$task_file" "assigned_to")
+        if [ "$assigned_to" = "$worker_id" ]; then
+            printf 'inflight\n'
+            return 0
+        fi
+    done
+
+    for task_file in "${TASK_PENDING_DIR}"/*.yaml "${REVIEW_PENDING_DIR}"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        assigned_to=$(ac_read_yaml_scalar "$task_file" "assigned_to")
+        if [ "$assigned_to" = "$worker_id" ]; then
+            printf 'pending\n'
+            return 0
+        fi
+    done
+
+    for task_file in "${TASK_BLOCKED_DIR}"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        assigned_to=$(ac_read_yaml_scalar "$task_file" "assigned_to")
+        if [ "$assigned_to" = "$worker_id" ]; then
+            printf 'blocked\n'
+            return 0
+        fi
+    done
+
+    printf 'idle\n'
+}
+
 pick_free_worker_from_candidates() {
     local pool_key="$1"
     shift || true
@@ -605,23 +756,52 @@ process_report_notifications() {
 }
 
 refresh_current_status() {
-    local worker_id worker_state started_at
+    local worker_id worker_state started_at command_status current_command_id
+    local coordinator_status task_author_status open_question_count
     started_at="$(ac_read_yaml_scalar "${STATUS_DIR}/current.yaml" "started_at")"
     [ -n "$started_at" ] || started_at="$(date -Iseconds)"
+
+    open_question_count=$(find "$QUESTION_OPEN_DIR" -maxdepth 1 -type f -name '*.yaml' 2>/dev/null | wc -l)
+    command_status=$(ac_read_yaml_scalar "${COMMANDS_DIR}/command.yaml" "status")
+    current_command_id=$(ac_read_yaml_scalar "${COMMANDS_DIR}/command.yaml" "id")
+
+    coordinator_status="idle"
+    if [ "$open_question_count" -gt 0 ]; then
+        coordinator_status="attention"
+    fi
+
+    task_author_status="idle"
+    if [ "$command_status" = "pending" ] || [ "$command_status" = "inflight" ]; then
+        if [ -n "$current_command_id" ] && has_unnotified_research_results_for_command "$current_command_id"; then
+            task_author_status="task_breakdown"
+        elif [ -n "$current_command_id" ] \
+            && has_done_research_tasks_for_command "$current_command_id" \
+            && ! has_active_research_tasks_for_command "$current_command_id" \
+            && ! has_active_primary_tasks_for_command "$current_command_id" \
+            && ! has_active_reviews_for_command "$current_command_id"; then
+            task_author_status="task_breakdown"
+        elif [ -n "$current_command_id" ] \
+            && ! has_done_research_tasks_for_command "$current_command_id" \
+            && ! has_active_research_tasks_for_command "$current_command_id" \
+            && ! has_active_primary_tasks_for_command "$current_command_id"; then
+            task_author_status="research_dispatching"
+        else
+            task_author_status="attention"
+        fi
+    elif has_unnotified_research_results; then
+        task_author_status="task_breakdown"
+    fi
+
     {
         echo "session: \"${AC_TMUX_SESSION_NAME}\""
         echo "started_at: \"${started_at}\""
-        echo "coordinator: \"online\""
-        echo "task_author: \"online\""
-        echo "dispatcher: \"online\""
+        echo "coordinator: \"${coordinator_status}\""
+        echo "task_author: \"${task_author_status}\""
+        echo "dispatcher: \"running\""
         echo "workers:"
         while IFS= read -r worker_id; do
             [ -n "$worker_id" ] || continue
-            if is_worker_busy "$worker_id"; then
-                worker_state="busy"
-            else
-                worker_state="idle"
-            fi
+            worker_state="$(worker_state_for_agent "$worker_id")"
             echo "  ${worker_id}: \"${worker_state}\""
         done < <(ac_worker_ids)
     } > "${STATUS_DIR}/current.yaml"
