@@ -6,6 +6,14 @@
 
 ![Dashboard overview](./docs/readme/dashboard-overview.png)
 
+## Requirements
+
+- `bash`, `tmux`, `python3`, and `git`
+- The runtime CLI for every section you enable in `agents.ini`
+- `codex` for `runtime = codex`
+- `claude` for `runtime = claude`
+- An authenticated session for each enabled runtime before `bin/agent-comm start`
+
 ## Quick Start
 
 1. Clone this repository into `<project>/agent-comm`.
