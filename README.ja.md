@@ -6,6 +6,14 @@
 
 ![Dashboard overview](./docs/readme/dashboard-overview-ja.png)
 
+## 前提
+
+- `bash`、`tmux`、`python3`、`git`
+- `agents.ini` で有効にする各 section に対応した runtime CLI
+- `runtime = codex` を使うなら `codex`
+- `runtime = claude` を使うなら `claude`
+- `bin/agent-comm start` 前に、有効化した runtime それぞれでログイン済みであること
+
 ## Quick Start
 
 1. このリポジトリを `<project>/agent-comm` に clone します。
