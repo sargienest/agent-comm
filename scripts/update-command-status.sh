@@ -8,10 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 usage() {
-    cat <<'USAGE'
-使い方:
-  ./scripts/update-command-status.sh --status <pending|inflight|done|blocked> [--output <path>]
-USAGE
+    ac_t "usage.update_command_status"
 }
 
 STATUS=""
@@ -32,7 +29,7 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "❌ エラー: 不明な引数です: $1" >&2
+            ac_t_format "cli.error.unknown_argument" "arg=$1" >&2
             usage >&2
             exit 1
             ;;
@@ -42,17 +39,17 @@ done
 case "$STATUS" in
     pending|inflight|done|blocked) ;;
     *)
-        echo "❌ エラー: --status は pending|inflight|done|blocked を指定してください。" >&2
+        ac_t "update_command_status.error.invalid_status" >&2
         exit 1
         ;;
 esac
 
 if [ ! -f "$OUTPUT_PATH" ]; then
-    echo "❌ エラー: command ファイルが見つかりません: ${OUTPUT_PATH}" >&2
+    ac_t_format "update_command_status.error.command_file_missing" "output_path=${OUTPUT_PATH}" >&2
     exit 1
 fi
 
 ac_set_yaml_scalar "$OUTPUT_PATH" "status" "$STATUS"
 ac_set_yaml_scalar "$OUTPUT_PATH" "updated_at" "$(ac_now_iso)"
 
-echo "✅ command status を更新しました: ${STATUS}"
+ac_t_format "update_command_status.success.updated" "status=${STATUS}"

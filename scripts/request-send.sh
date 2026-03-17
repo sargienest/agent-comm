@@ -8,14 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 usage() {
-    cat <<'USAGE'
-使い方:
-  ./scripts/request-send.sh --target <agent> --message <text> [--title <text>] [--channel agent]
-
-例:
-  ./scripts/request-send.sh --target implementer1 --message "タスクを確認してください"
-  ./scripts/request-send.sh --channel agent --target coordinator --title "質問" --message "ユーザー確認が必要です"
-USAGE
+    ac_t "usage.request_send"
 }
 
 detect_requester() {
@@ -78,7 +71,7 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "❌ エラー: 不明な引数です: $1" >&2
+            ac_t_format "cli.error.unknown_argument" "arg=$1" >&2
             usage >&2
             exit 1
             ;;
@@ -86,19 +79,19 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$TARGET" ]; then
-    echo "❌ エラー: --target は必須です。" >&2
+    ac_t "request_send.error.target_required" >&2
     exit 1
 fi
 
 if [ -z "$MESSAGE" ]; then
-    echo "❌ エラー: --message は必須です。" >&2
+    ac_t "request_send.error.message_required" >&2
     exit 1
 fi
 
 case "$CHANNEL" in
     agent) ;;
     *)
-        echo "❌ エラー: --channel は agent を指定してください。" >&2
+        ac_t "request_send.error.invalid_channel" >&2
         exit 1
         ;;
 esac
@@ -130,4 +123,4 @@ chmod 0644 "$tmp_file"
 ac_atomic_write_from_tmp "$tmp_file" "$out_file"
 trap - EXIT
 
-echo "✅ 送信要求を作成しました: ${out_file}"
+ac_t_format "request_send.success.created" "out_file=${out_file}"

@@ -11,34 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 usage() {
-    cat <<'USAGE'
-使い方:
-  ./scripts/write-task.sh \
-    --persona <persona> \
-    --title <title> \
-    --description <description> \
-    --write-file <path> [--write-file <path> ...] \
-    [--id <task_id>] \
-    [--type <implementation|investigation|analyst|rework|review>] \
-    [--depends-on <task_id>]... \
-    [--read-file <path>]... \
-    [--exclusive-group <group>] \
-    [--assigned-to <implementer1|reviewer1|investigation|analyst|tester>] \
-    [--command-id <command_id>] \
-    [--result-artifact-path <path>] \
-    [--output <path>]
-
-例:
-  ./scripts/write-task.sh \
-    --id task_refactor_dispatcher_001 \
-    --type implementation \
-    --persona implementer \
-    --title "dispatcherの競合ロック追加" \
-    --description "write_files ロックに対応する" \
-    --write-file scripts/watch-reports.sh \
-    --write-file scripts/agent-comm-common.sh \
-    --depends-on task_refactor_base_000
-USAGE
+    ac_t "usage.write_task"
 }
 
 escape_yaml() {
@@ -166,7 +139,7 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "❌ エラー: 不明な引数です: $1" >&2
+            ac_t_format "cli.error.unknown_argument" "arg=$1" >&2
             usage >&2
             exit 1
             ;;
@@ -183,7 +156,7 @@ fi
 case "$TASK_TYPE" in
     implementation|investigation|analyst|rework|review) ;;
     *)
-        echo "❌ エラー: type は implementation|investigation|analyst|rework|review を指定してください（入力: ${TASK_TYPE}）" >&2
+        ac_t_format "write_task.error.invalid_type" "task_type=${TASK_TYPE}" >&2
         exit 1
         ;;
 esac
@@ -203,31 +176,31 @@ fi
 ac_assert_task_id "$TASK_ID"
 
 if [ -z "$PERSONA" ]; then
-    echo "❌ エラー: persona は必須です。" >&2
+    ac_t "write_task.error.persona_required" >&2
     exit 1
 fi
 ac_assert_persona_exists "$PERSONA"
 
 if [ -z "$TITLE" ]; then
-    echo "❌ エラー: title は必須です。" >&2
+    ac_t "write_task.error.title_required" >&2
     exit 1
 fi
 
 if [ -z "$DESCRIPTION" ]; then
-    echo "❌ エラー: description は必須です。" >&2
+    ac_t "write_task.error.description_required" >&2
     exit 1
 fi
 
 if [ "${#WRITE_FILES[@]}" -eq 0 ]; then
     if [ "$TASK_TYPE" != "investigation" ] && [ "$TASK_TYPE" != "analyst" ] && [ "$TASK_TYPE" != "rework" ]; then
-        echo "❌ エラー: write_files は必須です。最低1件指定してください。" >&2
+        ac_t "write_task.error.write_files_required" >&2
         exit 1
     fi
 fi
 
 for wf in "${WRITE_FILES[@]}"; do
     if [ -z "$wf" ]; then
-        echo "❌ エラー: write_files に空文字は指定できません。" >&2
+        ac_t "write_task.error.write_file_empty" >&2
         exit 1
     fi
 done
@@ -244,13 +217,13 @@ fi
 
 if [ "$TASK_TYPE" = "implementation" ] && [ "$PERSONA" = "implementer" ] && [ -n "$CURRENT_COMMAND_ID" ]; then
     if has_active_research_for_command "$CURRENT_COMMAND_ID"; then
-        echo "❌ エラー: research task がまだ進行中のため、implementation task は作成できません。investigation と analyst の完了後に再実行してください。" >&2
+        ac_t "write_task.error.research_active" >&2
         exit 1
     fi
 fi
 
 if ac_find_task_file_by_id "$TASK_ID" >/dev/null 2>&1; then
-    echo "❌ エラー: 同じ task_id が既に存在します: ${TASK_ID}" >&2
+    ac_t_format "write_task.error.task_exists" "task_id=${TASK_ID}" >&2
     exit 1
 fi
 
@@ -262,12 +235,12 @@ ac_collect_task_ids > "$existing_ids_tmp"
 for dep in "${DEPENDS_ON[@]}"; do
     [ -z "$dep" ] && continue
     if [ "$dep" = "$TASK_ID" ]; then
-        echo "❌ エラー: 自己依存は禁止です: ${TASK_ID} -> ${dep}" >&2
+        ac_t_format "write_task.error.self_dependency" "task_id=${TASK_ID}" "dependency=${dep}" >&2
         exit 1
     fi
 
     if ! grep -Fxq "$dep" "$existing_ids_tmp"; then
-        echo "❌ エラー: depends_on の参照先が存在しません: ${dep}" >&2
+        ac_t_format "write_task.error.dep_not_found" "dependency=${dep}" >&2
         exit 1
     fi
 done
@@ -293,7 +266,7 @@ done
 
 if [ -s "$edges_tmp" ]; then
     if ! tsort "$edges_tmp" >/dev/null 2>&1; then
-        echo "❌ エラー: depends_on に循環があります。タスクを生成できません。" >&2
+        ac_t "write_task.error.dep_cycle" >&2
         exit 1
     fi
 fi
@@ -337,4 +310,4 @@ ac_atomic_write_from_tmp "$tmp_file" "$OUTPUT_PATH"
 trap - EXIT
 rm -f "$existing_ids_tmp" "$edges_tmp"
 
-echo "✅ タスクを書き込みました: ${OUTPUT_PATH}"
+ac_t_format "write_task.success.written" "output_path=${OUTPUT_PATH}"

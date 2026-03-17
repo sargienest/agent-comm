@@ -8,17 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 usage() {
-    cat <<'USAGE'
-使い方:
-  ./scripts/task-finish.sh \
-    --task-id <task_id> \
-    --result <success|failure|blocked> \
-    --summary <summary> \
-    [--details <details>] \
-    [--review-decision <approve|requestchange>] \
-    [--rework-target <task_id>]... \
-    [--finding <text>]...
-USAGE
+    ac_t "usage.task_finish"
 }
 
 TASK_ID=""
@@ -67,7 +57,7 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "❌ エラー: 不明な引数です: $1" >&2
+            ac_t_format "cli.error.unknown_argument" "arg=$1" >&2
             usage >&2
             exit 1
             ;;
@@ -84,7 +74,7 @@ ac_assert_task_id "$TASK_ID"
 case "$RESULT" in
     success|failure|blocked) ;;
     *)
-        echo "❌ エラー: --result は success|failure|blocked を指定してください。" >&2
+        ac_t "task_finish.error.invalid_result" >&2
         exit 1
         ;;
 esac
@@ -93,7 +83,7 @@ if [ -n "$REVIEW_DECISION" ]; then
     case "$REVIEW_DECISION" in
         approve|requestchange) ;;
         *)
-            echo "❌ エラー: --review-decision は approve|requestchange を指定してください。" >&2
+            ac_t "task_finish.error.invalid_review_decision" >&2
             exit 1
             ;;
     esac
@@ -111,14 +101,14 @@ done
 REWORK_TARGETS=("${local_filtered_targets[@]}")
 
 if [ "$REVIEW_DECISION" = "requestchange" ] && [ "${#REWORK_TARGETS[@]}" -eq 0 ]; then
-    echo "❌ エラー: requestchange の場合は --rework-target を最低1件指定してください。" >&2
+    ac_t "task_finish.error.rework_target_required" >&2
     exit 1
 fi
 
 for target_id in "${REWORK_TARGETS[@]}"; do
     ac_assert_task_id "$target_id"
     if ! ac_find_task_file_by_id "$target_id" >/dev/null 2>&1; then
-        echo "❌ エラー: --rework-target で指定した task_id が存在しません: ${target_id}" >&2
+        ac_t_format "task_finish.error.rework_target_not_found" "target_id=${target_id}" >&2
         exit 1
     fi
 done
@@ -126,13 +116,13 @@ done
 ac_ensure_dirs
 
 if ! task_file=$(ac_find_task_file_by_id "$TASK_ID" 2>/dev/null); then
-    echo "❌ エラー: task_id が見つかりません: ${TASK_ID}" >&2
+    ac_t_format "task_finish.error.task_not_found" "task_id=${TASK_ID}" >&2
     exit 1
 fi
 
 state=$(ac_task_state_from_path "$task_file")
 if [ "$state" != "inflight" ]; then
-    echo "❌ エラー: inflight 以外は完了処理できません（現在: ${state}）" >&2
+    ac_t_format "task_finish.error.inflight_only" "state=${state}" >&2
     exit 1
 fi
 
@@ -142,7 +132,7 @@ TASK_TYPE=$(ac_read_yaml_scalar "$task_file" "type")
 worker_id=$(ac_read_yaml_scalar "$task_file" "assigned_to")
 command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
 if [ -z "$worker_id" ]; then
-    echo "❌ エラー: assigned_to が空です（task: ${TASK_ID}）。" >&2
+    ac_t_format "task_finish.error.assigned_to_missing" "task_id=${TASK_ID}" >&2
     exit 1
 fi
 ac_validate_worker_id "$worker_id"
@@ -242,12 +232,12 @@ write_research_artifact() {
 
     # 既存成果物がある場合は、調査本文を保護するため上書きしない。
     if [ -f "$artifact_path" ] && [ -s "$artifact_path" ]; then
-        echo "ℹ️ 既存の調査成果物を保持しました（上書きしません）: ${artifact_path}" >&2
+        ac_t_format "task_finish.info.artifact_preserved" "artifact_path=${artifact_path}" >&2
         return 0
     fi
 
     {
-        echo "# ${task_type} タスク結果"
+        ac_t_format "task_finish.artifact.header" "task_type=${task_type}"
         echo "task_id: \"$(ac_escape_yaml_double_quoted "$TASK_ID")\""
         echo "worker_id: \"$(ac_escape_yaml_double_quoted "$worker_id")\""
         echo "persona: \"$(ac_escape_yaml_double_quoted "$persona")\""
@@ -268,8 +258,8 @@ write_report "$report_header_file"
 write_report "$report_event_file"
 if [ "$TASK_TYPE" = "investigation" ] || [ "$TASK_TYPE" = "analyst" ]; then
     if ! write_research_artifact "$RESULT_ARTIFACT_PATH" "$TASK_TYPE"; then
-        echo "⚠️ 調査成果物の保存に失敗しました: ${RESULT_ARTIFACT_PATH}" >&2
+        ac_t_format "task_finish.warn.artifact_save_failed" "artifact_path=${RESULT_ARTIFACT_PATH}" >&2
     fi
 fi
 
-echo "✅ 完了処理: ${TASK_ID} -> ${new_status} (${destination})"
+ac_t_format "task_finish.success.completed" "task_id=${TASK_ID}" "new_status=${new_status}" "destination=${destination}"

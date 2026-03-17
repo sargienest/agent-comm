@@ -23,3 +23,78 @@ ac_i18n_register "message.report_tester_update" $'The test execution task was up
 ac_i18n_register "message.report_reviewer_update" $'The review task was updated.\ntask_id: {task_id}\nresult: {result}\nreview_decision: {review_decision}\ncommand_id: {command_id}\n\nCreate a rework task if needed.'
 ac_i18n_register "message.report_review_group_update" $'The overall review completed.\ntask_id: {task_id}\nresult: {result}\nreview_decision: {review_decision}\ncommand_id: {command_id}\nreviewer_count: {reviewer_count}\nrework_note: {note_path}\n\nCreate the next rework task if needed.'
 ac_i18n_register "message.report_generic_complete" $'Task completion notification.\ntask_id: {task_id}\npersona: {persona}\ntype: {task_type}\nresult: {result}\ncommand_id: {command_id}'
+ac_i18n_register "stop.session_missing_cleared" "Session '{session}' was not found. Runtime state was cleared."
+ac_i18n_register "stop.session_detached_started" "Started stopping session '{session}' in the background."
+ac_i18n_register "stop.session_stop_failed" "Failed to stop session '{sessions}'."
+ac_i18n_register "stop.session_stopped" "Stopped session '{sessions}'."
+ac_i18n_register "task.pre_review_gate.title" "Pre-review test gate ({short_sig})"
+ac_i18n_register "task.pre_review_gate.description" $'This is the test gate before the overall review. Run tests against the current implementation diff. If a failure is caused by this change, fix it and rerun the tests.\n\nCompletion criteria:\n- Run the necessary tests and record the results in summary / details\n- Fix every failure caused by this change before finishing\n- If anything is unclear, do not guess; use create-question.sh'
+ac_i18n_register "task.review_rework.title" "Review follow-up (cycle {cycle_id})"
+ac_i18n_register "task.review_rework.description.with_note" $'Overall review cycle {cycle_id} returned requestchange.\nReview `rework_note_path` and address every item.\nWhen finished, dispatcher will run tester and the overall review again.'
+ac_i18n_register "task.review_rework.description.without_note" $'Overall review cycle {cycle_id} returned requestchange.\nAddress every review issue and update the implementation.\nWhen finished, dispatcher will run tester and the overall review again.'
+ac_i18n_register "task.overall_review.title" "Overall review cycle {cycle_id} ({short_sig})"
+ac_i18n_register "task.overall_review.description" $'Review the full diff and decide approve or requestchange.\nIf you choose requestchange, fill in summary / details / rework_targets / findings correctly.\nDispatcher will aggregate requestchange results and redistribute the follow-up work.'
+ac_i18n_register "command.pending_fallback" "Check command.yaml."
+ac_i18n_register "cli.error.unknown_argument" "Error: unknown argument: {arg}"
+ac_i18n_register "common.error.role_frontmatter_missing" "Role frontmatter field '{field}' is missing: {role_file}"
+ac_i18n_register "common.error.unsupported_runtime" "Unsupported runtime: {runtime}"
+ac_i18n_register "start.error.session_exists" "Session '{session}' already exists."
+ac_i18n_register "launch.error.session_missing" "tmux session was not found: {session}"
+ac_i18n_register "usage.write_task" $'Usage:\n  ./scripts/write-task.sh \\\n    --persona <persona> \\\n    --title <title> \\\n    --description <description> \\\n    --write-file <path> [--write-file <path> ...] \\\n    [--id <task_id>] \\\n    [--type <implementation|investigation|analyst|rework|review>] \\\n    [--depends-on <task_id>]... \\\n    [--read-file <path>]... \\\n    [--exclusive-group <group>] \\\n    [--assigned-to <implementer1|reviewer1|investigation|analyst|tester>] \\\n    [--command-id <command_id>] \\\n    [--result-artifact-path <path>] \\\n    [--output <path>]\n\nExample:\n  ./scripts/write-task.sh \\\n    --id task_refactor_dispatcher_001 \\\n    --type implementation \\\n    --persona implementer \\\n    --title "Add dispatcher lock coordination" \\\n    --description "Handle write_files locking" \\\n    --write-file scripts/watch-reports.sh \\\n    --write-file scripts/agent-comm-common.sh \\\n    --depends-on task_refactor_base_000'
+ac_i18n_register "write_task.error.invalid_type" "Error: type must be one of implementation|investigation|analyst|rework|review (got: {task_type})"
+ac_i18n_register "write_task.error.persona_required" "Error: persona is required."
+ac_i18n_register "write_task.error.title_required" "Error: title is required."
+ac_i18n_register "write_task.error.description_required" "Error: description is required."
+ac_i18n_register "write_task.error.write_files_required" "Error: write_files is required. Specify at least one path."
+ac_i18n_register "write_task.error.write_file_empty" "Error: write_files cannot contain an empty value."
+ac_i18n_register "write_task.error.research_active" "Error: implementation tasks cannot be created while research tasks are still active. Retry after investigation and analyst complete."
+ac_i18n_register "write_task.error.task_exists" "Error: the same task_id already exists: {task_id}"
+ac_i18n_register "write_task.error.self_dependency" "Error: self dependency is not allowed: {task_id} -> {dependency}"
+ac_i18n_register "write_task.error.dep_not_found" "Error: depends_on target was not found: {dependency}"
+ac_i18n_register "write_task.error.dep_cycle" "Error: depends_on contains a cycle. The task could not be created."
+ac_i18n_register "write_task.success.written" "Task written: {output_path}"
+ac_i18n_register "usage.create_question" $'Usage:\n  ./scripts/create-question.sh --task-id <task_id> --question <text>'
+ac_i18n_register "create_question.error.task_not_found" "Error: task_id was not found: {task_id}"
+ac_i18n_register "create_question.error.inflight_only" "Error: only inflight tasks can create questions (current: {state})"
+ac_i18n_register "create_question.success.created" "Question created: {question_file}"
+ac_i18n_register "usage.write_command_task" $'Usage:\n  ./scripts/write-command-task.sh --command <instruction text> [--id <command_id>] [--priority <high|medium|low>] [--output <path>]'
+ac_i18n_register "write_command_task.error.command_required" "Error: --command is required."
+ac_i18n_register "write_command_task.error.invalid_priority" "Error: --priority must be one of high|medium|low."
+ac_i18n_register "write_command_task.success.updated" "Command updated: {output_path}"
+ac_i18n_register "usage.answer_question" $'Usage:\n  ./scripts/answer-question.sh --question-id <task_id_qN> --answer <text>'
+ac_i18n_register "answer_question.error.open_question_missing" "Error: open question was not found: {question_id}"
+ac_i18n_register "answer_question.success.answered" "Question answered: {destination}"
+ac_i18n_register "usage.update_command_status" $'Usage:\n  ./scripts/update-command-status.sh --status <pending|inflight|done|blocked> [--output <path>]'
+ac_i18n_register "update_command_status.error.invalid_status" "Error: --status must be one of pending|inflight|done|blocked."
+ac_i18n_register "update_command_status.error.command_file_missing" "Error: command file was not found: {output_path}"
+ac_i18n_register "update_command_status.success.updated" "Command status updated: {status}"
+ac_i18n_register "usage.task_heartbeat" $'Usage:\n  ./scripts/task-heartbeat.sh --task-id <task_id>'
+ac_i18n_register "task_heartbeat.error.task_not_found" "Error: task_id was not found: {task_id}"
+ac_i18n_register "task_heartbeat.error.inflight_only" "Error: heartbeat is only allowed for inflight tasks (current: {state})"
+ac_i18n_register "task_heartbeat.success.updated" "Heartbeat updated: {task_id}"
+ac_i18n_register "usage.send_msg" $'Usage:\n  ./scripts/send-msg.sh <target> <message>\n\ntarget:\n  coordinator | task_author | dispatcher | investigation | analyst | tester | implementerN | reviewerN'
+ac_i18n_register "send_msg.error.invalid_agent" "Invalid target agent: {target_name}"
+ac_i18n_register "send_msg.error.tmux_target_missing" "tmux target was not found: {target}"
+ac_i18n_register "send_msg.success.sent" "Sent: {target_name}"
+ac_i18n_register "usage.restart_agent" "Usage: ./scripts/restart-agent.sh <coordinator|task_author|dispatcher|investigation|analyst|tester|implementers|reviewers|workers|implementerN|reviewerN|all>"
+ac_i18n_register "restart_agent.error.session_missing" "tmux session was not found: {session}"
+ac_i18n_register "restart_agent.error.invalid_target" "Unknown restart target: {target}"
+ac_i18n_register "usage.request_send" $'Usage:\n  ./scripts/request-send.sh --target <agent> --message <text> [--title <text>] [--channel agent]\n\nExamples:\n  ./scripts/request-send.sh --target implementer1 --message "Review the task"\n  ./scripts/request-send.sh --channel agent --target coordinator --title "Question" --message "User input is required"'
+ac_i18n_register "request_send.error.target_required" "Error: --target is required."
+ac_i18n_register "request_send.error.message_required" "Error: --message is required."
+ac_i18n_register "request_send.error.invalid_channel" "Error: --channel must be agent."
+ac_i18n_register "request_send.success.created" "Send request created: {out_file}"
+ac_i18n_register "usage.task_finish" $'Usage:\n  ./scripts/task-finish.sh \\\n    --task-id <task_id> \\\n    --result <success|failure|blocked> \\\n    --summary <summary> \\\n    [--details <details>] \\\n    [--review-decision <approve|requestchange>] \\\n    [--rework-target <task_id>]... \\\n    [--finding <text>]...'
+ac_i18n_register "task_finish.error.invalid_result" "Error: --result must be one of success|failure|blocked."
+ac_i18n_register "task_finish.error.invalid_review_decision" "Error: --review-decision must be one of approve|requestchange."
+ac_i18n_register "task_finish.error.rework_target_required" "Error: requestchange requires at least one --rework-target."
+ac_i18n_register "task_finish.error.rework_target_not_found" "Error: --rework-target task_id was not found: {target_id}"
+ac_i18n_register "task_finish.error.task_not_found" "Error: task_id was not found: {task_id}"
+ac_i18n_register "task_finish.error.inflight_only" "Error: only inflight tasks can be completed (current: {state})"
+ac_i18n_register "task_finish.error.assigned_to_missing" "Error: assigned_to is empty (task: {task_id})."
+ac_i18n_register "task_finish.info.artifact_preserved" "Preserved existing research artifact without overwriting it: {artifact_path}"
+ac_i18n_register "task_finish.artifact.header" "# {task_type} task result"
+ac_i18n_register "task_finish.warn.artifact_save_failed" "Failed to save research artifact: {artifact_path}"
+ac_i18n_register "task_finish.success.completed" "Completion processed: {task_id} -> {new_status} ({destination})"
+ac_i18n_register "usage.reinject_role" "Usage: ./scripts/reinject-role.sh <coordinator|task_author|investigation|analyst|tester|implementers|reviewers|implementerN|reviewerN|all>"
+ac_i18n_register "reinject_role.error.invalid_target" "Unknown reinject target: {target}"

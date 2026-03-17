@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 if [ $# -lt 1 ]; then
-    ac_fail "使い方: ./scripts/reinject-role.sh <coordinator|task_author|investigation|analyst|tester|implementers|reviewers|implementerN|reviewerN|all>"
+    ac_fail "$(ac_t 'usage.reinject_role')"
 fi
 
 reinject() {
@@ -59,7 +59,7 @@ case "$1" in
         reinject_section_workers reviewer
         ;;
     *)
-        ac_fail "不明な対象です: $1"
+        ac_fail "$(ac_t_format 'reinject_role.error.invalid_target' "target=$1")"
         ;;
 esac
 
