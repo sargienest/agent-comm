@@ -28,6 +28,9 @@
             --warn: #ffc166;
             --bad: #ff7c86;
             --info: #80bfff;
+            --font-ui: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
+            --font-display: 'Space Grotesk', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', sans-serif;
+            --font-mono: 'Space Grotesk', 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI', 'Meiryo', monospace;
             --radius-xl: 26px;
             --radius-lg: 16px;
             --shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
@@ -43,7 +46,7 @@
             width: 100%;
             min-height: 100%;
             color: var(--text);
-            font-family: 'Noto Sans JP', sans-serif;
+            font-family: var(--font-ui);
             background:
                 radial-gradient(circle at 0% 0%, rgba(255, 162, 79, 0.16), transparent 26%),
                 radial-gradient(circle at 100% 12%, rgba(56, 216, 208, 0.12), transparent 30%),
@@ -119,7 +122,7 @@
 
         .title-wrap h1 {
             margin: 0;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-ui);
             font-size: clamp(20px, 2.1vw, 30px);
             font-weight: 700;
             letter-spacing: 0.03em;
@@ -177,7 +180,7 @@
 
         .top-last-update {
             color: rgba(156, 191, 216, 0.68);
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-display);
             font-size: 10px;
             letter-spacing: 0.06em;
             text-transform: uppercase;
@@ -280,7 +283,7 @@
 
         .lang-select-label {
             color: var(--subtext);
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-display);
             font-size: 10px;
             font-weight: 700;
             letter-spacing: 0.08em;
@@ -294,7 +297,7 @@
             background: rgba(4, 12, 21, 0.94);
             color: var(--text);
             padding: 7px 32px 7px 10px;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-display);
             font-size: 12px;
             font-weight: 700;
             letter-spacing: 0.02em;
@@ -448,7 +451,7 @@
 
         .metric-value {
             color: #fff;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-ui);
             font-size: clamp(13px, 1.1vw, 16px);
             line-height: 1.18;
             font-weight: 700;
@@ -501,7 +504,7 @@
 
         .panel h2 {
             margin: 0;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-ui);
             font-size: 15px;
             font-weight: 600;
             letter-spacing: 0.02em;
@@ -734,7 +737,7 @@
 
         .worker-group-label {
             color: #eef6ff;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.06em;
@@ -844,7 +847,7 @@
         }
 
         .worker-row strong {
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-ui);
             font-size: 12px;
             line-height: 1.25;
             overflow-wrap: anywhere;
@@ -1052,7 +1055,7 @@
         }
 
         .mono {
-            font-family: 'Space Grotesk', monospace;
+            font-family: var(--font-mono);
             font-size: 11px;
             color: #d4e9fb;
             overflow-wrap: anywhere;
@@ -1163,7 +1166,7 @@
 
         .task-modal-head h3 {
             margin: 0;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-display);
             font-size: 16px;
             line-height: 1.25;
         }
@@ -1212,7 +1215,7 @@
         .task-modal-section h4 {
             margin: 0;
             color: #f3f8ff;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-display);
             font-size: 12px;
             letter-spacing: 0.02em;
         }
@@ -1224,7 +1227,7 @@
             background: rgba(4, 12, 21, 0.9);
             padding: 8px;
             color: #e8f4ff;
-            font-family: 'Space Grotesk', monospace;
+            font-family: var(--font-mono);
             font-size: 12px;
             line-height: 1.45;
             white-space: pre-wrap;
@@ -1329,7 +1332,7 @@
         }
 
         .agent-console-title strong {
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-display);
             font-size: 13px;
             line-height: 1.25;
             color: #f4fbff;
@@ -1340,7 +1343,7 @@
             border: 1px solid var(--line);
             background: rgba(5, 14, 24, 0.9);
             color: #e3f1ff;
-            font-family: 'Space Grotesk', monospace;
+            font-family: var(--font-mono);
             font-size: 12px;
             line-height: 1.42;
             padding: 9px;
@@ -1382,7 +1385,7 @@
         }
 
         .dispatcher-summary-main strong {
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: var(--font-display);
             font-size: 14px;
             line-height: 1.2;
             color: #f4fbff;
@@ -1394,7 +1397,7 @@
             border-radius: 10px;
             background: rgba(6, 17, 27, 0.9);
             color: #f4fbff;
-            font-family: 'Noto Sans JP', sans-serif;
+            font-family: var(--font-ui);
             font-size: 12px;
             line-height: 1.4;
             padding: 8px 9px;
@@ -1405,6 +1408,24 @@
         .send-input:focus {
             outline: 1px solid var(--line-strong);
             border-color: var(--line-strong);
+        }
+
+        html[lang='ja'] .title-wrap h1,
+        html[lang='ja'] .top-last-update,
+        html[lang='ja'] .lang-select-label,
+        html[lang='ja'] .lang-select,
+        html[lang='ja'] .metric-value,
+        html[lang='ja'] .panel h2,
+        html[lang='ja'] .worker-group-label,
+        html[lang='ja'] .worker-row strong,
+        html[lang='ja'] .mono,
+        html[lang='ja'] .task-modal-head h3,
+        html[lang='ja'] .task-modal-section h4,
+        html[lang='ja'] .task-modal-pre,
+        html[lang='ja'] .agent-console-title strong,
+        html[lang='ja'] .history-box,
+        html[lang='ja'] .dispatcher-summary-main strong {
+            font-family: var(--font-ui);
         }
 
         .send-row {

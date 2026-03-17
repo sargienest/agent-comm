@@ -2,7 +2,9 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` is a bash-first multi-agent runner for mixed Codex / Claude setups. Clone it under a target project, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the project root.
+`agent-comm` is a bash-first multi-agent runner for Codex / Claude setups with per-role runtime selection. Clone it under a target project, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the project root.
+
+![Dashboard overview](./docs/readme/dashboard-overview.png)
 
 ## Quick Start
 
@@ -15,6 +17,8 @@
 7. Run `bin/agent-comm start`.
 8. Open the dashboard URL printed by `start` or `status`.
 
+The shipped `agents.ini.example` stays Codex-only so the first launch works with one authenticated runtime. Switch any section to `claude` when you want a mixed topology.
+
 ## Public Commands
 
 - `bin/agent-comm validate-config`
@@ -25,38 +29,14 @@
 - `bin/agent-comm dashboard [start|stop|status]`
 - `bin/agent-comm send --agent <id> --message <text|file>`
 
-## End-to-End Flow
-
-This is the whole system at a glance:
-
-![End-to-end flow](./docs/readme/flow-overview.svg)
-
-At a glance:
+## How It Works
 
 - `coordinator` receives the user request.
 - `task_author` turns that request into task files.
 - The dispatcher routes each task to the right agent or pool.
-- Research, implementation, testing, and review all report back through `.runtime/reports/events`.
-- `task_author` uses those results to decide the next tasks or finalize the work.
-- `coordinator` sends the final answer back to the user.
-
-Question / answer loop:
-
-![Question and answer loop](./docs/readme/question-loop.svg)
-
-At a glance:
-
-- A worker opens a question when it cannot continue safely.
-- The task moves to `blocked`.
-- The dispatcher notifies `coordinator`.
-- The coordinator answers the question.
-- The dispatcher appends that answer to the task and puts the task back into the queue.
-
-## Dashboard
-
-Overview screenshot:
-
-![Dashboard overview](./docs/readme/dashboard-overview.png)
+- Research, implementation, testing, and review report back through `.runtime/reports/events`.
+- If a worker cannot proceed safely, it opens a question, the dispatcher notifies `coordinator`, and the answer is appended before the task is re-queued.
+- `task_author` decides the next tasks or finalization, and `coordinator` returns the final answer.
 
 ## Runtime Layout
 

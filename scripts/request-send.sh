@@ -10,11 +10,11 @@ source "${SCRIPT_DIR}/agent-comm-common.sh"
 usage() {
     cat <<'USAGE'
 使い方:
-  ./scripts/request-send.sh --target <agent|discord> --message <text> [--title <text>] [--channel <agent|discord>]
+  ./scripts/request-send.sh --target <agent> --message <text> [--title <text>] [--channel agent]
 
 例:
   ./scripts/request-send.sh --target implementer1 --message "タスクを確認してください"
-  ./scripts/request-send.sh --channel discord --target coordinator --title "質問" --message "ユーザー確認が必要です"
+  ./scripts/request-send.sh --channel agent --target coordinator --title "質問" --message "ユーザー確認が必要です"
 USAGE
 }
 
@@ -96,9 +96,9 @@ if [ -z "$MESSAGE" ]; then
 fi
 
 case "$CHANNEL" in
-    agent|discord) ;;
+    agent) ;;
     *)
-        echo "❌ エラー: --channel は agent|discord を指定してください。" >&2
+        echo "❌ エラー: --channel は agent を指定してください。" >&2
         exit 1
         ;;
 esac

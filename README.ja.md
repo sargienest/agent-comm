@@ -2,7 +2,9 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` は、Codex / Claude 混在構成に対応した bash-first なマルチエージェントランナーです。対象プロジェクト配下に clone し、`agent-comm.ini.example` と `agents.ini.example` をコピーして設定を編集してから `start` を実行すると、runtime ファイルをプロジェクトルートへ散らさずに tmux agents とローカル dashboard を起動できます。
+`agent-comm` は、Codex / Claude を role ごとに切り替えられる bash-first なマルチエージェントランナーです。対象プロジェクト配下に clone し、`agent-comm.ini.example` と `agents.ini.example` をコピーして設定を編集してから `start` を実行すると、runtime ファイルをプロジェクトルートへ散らさずに tmux agents とローカル dashboard を起動できます。
+
+![Dashboard overview](./docs/readme/dashboard-overview-ja.png)
 
 ## Quick Start
 
@@ -15,6 +17,8 @@
 7. `bin/agent-comm start` を実行します。
 8. `start` または `status` で表示された dashboard URL を開きます。
 
+同梱の `agents.ini.example` は、初回起動で詰まりにくいよう Codex-only 構成にしています。混在構成にしたい場合は、使いたい section だけ `runtime = claude` へ切り替えてください。
+
 ## Public Commands
 
 - `bin/agent-comm validate-config`
@@ -25,38 +29,14 @@
 - `bin/agent-comm dashboard [start|stop|status]`
 - `bin/agent-comm send --agent <id> --message <text|file>`
 
-## End-to-End Flow
-
-全体像はこれです。
-
-![End-to-end flow](./docs/readme/flow-overview.svg)
-
-要点:
+## 仕組み
 
 - `coordinator` がユーザー依頼を受けます。
 - `task_author` が依頼を task file に分解します。
 - dispatcher が task を対応 agent / pool に配布します。
 - 調査、実装、テスト、レビューの結果は `.runtime/reports/events` に返ります。
-- `task_author` がその結果を見て次 task か完了を決めます。
-- 最後は `coordinator` がユーザーへ返答します。
-
-質問と回答のループ:
-
-![Question and answer loop](./docs/readme/question-loop.svg)
-
-要点:
-
-- worker が安全に進められないとき質問を作ります。
-- task は `blocked` に移動します。
-- dispatcher が `coordinator` に質問を通知します。
-- `coordinator` が回答します。
-- dispatcher が回答を task に追記し、再配布します。
-
-## Dashboard
-
-Overview スクリーンショット:
-
-![Dashboard overview](./docs/readme/dashboard-overview.png)
+- worker が安全に進められないときは質問を作り、dispatcher が `coordinator` に通知し、その回答を task に追記して再配布します。
+- `task_author` が次 task か完了を決め、最後は `coordinator` がユーザーへ返答します。
 
 ## Runtime Layout
 

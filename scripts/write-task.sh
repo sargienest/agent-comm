@@ -242,6 +242,13 @@ if [ -n "$ASSIGNED_TO" ]; then
     ac_validate_worker_id "$ASSIGNED_TO"
 fi
 
+if [ "$TASK_TYPE" = "implementation" ] && [ "$PERSONA" = "implementer" ] && [ -n "$CURRENT_COMMAND_ID" ]; then
+    if has_active_research_for_command "$CURRENT_COMMAND_ID"; then
+        echo "❌ エラー: research task がまだ進行中のため、implementation task は作成できません。investigation と analyst の完了後に再実行してください。" >&2
+        exit 1
+    fi
+fi
+
 if ac_find_task_file_by_id "$TASK_ID" >/dev/null 2>&1; then
     echo "❌ エラー: 同じ task_id が既に存在します: ${TASK_ID}" >&2
     exit 1

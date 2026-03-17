@@ -30,12 +30,19 @@ send_plain() {
     tmux send-keys -t "$target" C-m
 }
 
+confirm_workspace_trust() {
+    local target="$1"
+    sleep 1
+    tmux send-keys -t "$target" C-m
+}
+
 launch_agent_runtime() {
     local agent_id="$1"
     local target launch_command delay_seconds
     target="$(ac_agent_tmux_target "$agent_id")"
     launch_command="$(ac_agent_launch_command "$agent_id")"
     send_plain "$target" "$launch_command"
+    confirm_workspace_trust "$target"
     delay_seconds="$(ac_agent_startup_delay_seconds "$agent_id")"
     sleep "$delay_seconds"
 }
