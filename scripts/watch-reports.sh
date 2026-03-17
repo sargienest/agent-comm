@@ -1,0 +1,649 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/agent-comm-common.sh
+source "${SCRIPT_DIR}/agent-comm-common.sh"
+
+SWEEP_INTERVAL_SECONDS="${SWEEP_INTERVAL_SECONDS:-2}"
+TMUX_SNAPSHOT_INTERVAL_SECONDS="${TMUX_SNAPSHOT_INTERVAL_SECONDS:-5}"
+
+QUESTION_NOTIFY_STATE_FILE="${STATUS_DIR}/question_notify_state.txt"
+QUESTION_RESUME_STATE_FILE="${STATUS_DIR}/question_resume_state.txt"
+COMMAND_NOTIFY_STATE_FILE="${STATUS_DIR}/command_dispatch_state.txt"
+REPORT_NOTIFY_STATE_FILE="${STATUS_DIR}/report_notify_state.txt"
+REVIEW_CYCLE_STATE_FILE="${RUNTIME_DIR}/review_cycle_state.env"
+TMUX_SNAPSHOT_LOOP_PID=""
+
+set_contains_line() {
+    local file="$1"
+    local value="$2"
+    grep -Fxq "$value" "$file" 2>/dev/null
+}
+
+set_add_line() {
+    local file="$1"
+    local value="$2"
+    if ! set_contains_line "$file" "$value"; then
+        echo "$value" >> "$file"
+    fi
+}
+
+dispatch_cursor_file() {
+    printf '%s/dispatch_cursor_%s.txt\n' "$RUNTIME_DIR" "$1"
+}
+
+read_review_cycle_state() {
+    if [ -f "$REVIEW_CYCLE_STATE_FILE" ]; then
+        # shellcheck disable=SC1090
+        source "$REVIEW_CYCLE_STATE_FILE"
+    fi
+
+    REVIEW_CYCLE_ID="${REVIEW_CYCLE_ID:-0}"
+    REVIEW_CYCLE_ACTIVE="${REVIEW_CYCLE_ACTIVE:-0}"
+    REVIEW_TARGET_SIGNATURE="${REVIEW_TARGET_SIGNATURE:-}"
+    REVIEW_LAST_APPROVED_SIGNATURE="${REVIEW_LAST_APPROVED_SIGNATURE:-}"
+}
+
+save_review_cycle_state() {
+    local tmp_file
+    tmp_file=$(mktemp)
+    {
+        echo "REVIEW_CYCLE_ID=${REVIEW_CYCLE_ID}"
+        echo "REVIEW_CYCLE_ACTIVE=${REVIEW_CYCLE_ACTIVE}"
+        echo "REVIEW_TARGET_SIGNATURE=\"${REVIEW_TARGET_SIGNATURE}\""
+        echo "REVIEW_LAST_APPROVED_SIGNATURE=\"${REVIEW_LAST_APPROVED_SIGNATURE}\""
+    } > "$tmp_file"
+    ac_atomic_write_from_tmp "$tmp_file" "$REVIEW_CYCLE_STATE_FILE"
+}
+
+init_runtime() {
+    local token
+
+    ac_ensure_runtime_dirs
+    ac_write_runtime_env
+    touch "$QUESTION_NOTIFY_STATE_FILE" "$QUESTION_RESUME_STATE_FILE" "$COMMAND_NOTIFY_STATE_FILE" "$REPORT_NOTIFY_STATE_FILE"
+
+    token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+    [ -n "$token" ] || token="token_${RANDOM}_$(date +%s)"
+
+    echo "$$" > "$DISPATCHER_PID_FILE"
+    echo "$token" > "$DISPATCHER_TOKEN_FILE"
+    export DISPATCHER_PID="$$"
+    export DISPATCHER_TOKEN="$token"
+
+    read_review_cycle_state
+    save_review_cycle_state
+
+    trap cleanup_runtime EXIT INT TERM
+}
+
+cleanup_runtime() {
+    if [ -n "${TMUX_SNAPSHOT_LOOP_PID:-}" ]; then
+        kill "$TMUX_SNAPSHOT_LOOP_PID" >/dev/null 2>&1 || true
+        wait "$TMUX_SNAPSHOT_LOOP_PID" 2>/dev/null || true
+    fi
+
+    rm -f "$DISPATCHER_PID_FILE" "$DISPATCHER_TOKEN_FILE"
+}
+
+capture_tmux_snapshots_once() {
+    local agent_id
+    while IFS= read -r agent_id; do
+        [ -n "$agent_id" ] || continue
+        ac_capture_tmux_snapshot "$agent_id" "$(ac_agent_tmux_target "$agent_id")"
+    done < <(ac_all_agent_ids)
+}
+
+run_tmux_snapshot_loop() {
+    while true; do
+        capture_tmux_snapshots_once || true
+        sleep "$TMUX_SNAPSHOT_INTERVAL_SECONDS"
+    done
+}
+
+is_worker_busy() {
+    local worker_id="$1"
+    local task_file
+    for task_file in "${TASK_INFLIGHT_DIR}"/*.yaml "${REVIEW_INFLIGHT_DIR}"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        if [ "$(ac_read_yaml_scalar "$task_file" "assigned_to")" = "$worker_id" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+pick_free_worker_from_candidates() {
+    local pool_key="$1"
+    shift || true
+    local candidates=("$@")
+    local count="${#candidates[@]}"
+    local cursor_file cursor_value idx offset candidate
+
+    [ "$count" -gt 0 ] || return 1
+
+    cursor_file="$(dispatch_cursor_file "$pool_key")"
+    cursor_value="-1"
+    if [ -f "$cursor_file" ]; then
+        cursor_value="$(cat "$cursor_file" 2>/dev/null || true)"
+    fi
+    [[ "$cursor_value" =~ ^-?[0-9]+$ ]] || cursor_value="-1"
+
+    offset=1
+    while [ "$offset" -le "$count" ]; do
+        idx=$(((cursor_value + offset + count) % count))
+        candidate="${candidates[$idx]}"
+        if ! is_worker_busy "$candidate"; then
+            printf '%s\n' "$idx" > "$cursor_file"
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+        offset=$((offset + 1))
+    done
+
+    return 1
+}
+
+pick_free_worker_for_task() {
+    local task_file="$1"
+    local persona
+    local candidates=()
+
+    persona="$(ac_read_yaml_scalar "$task_file" "persona")"
+    [ -n "$persona" ] || return 1
+
+    while IFS= read -r candidate; do
+        [ -n "$candidate" ] || continue
+        candidates+=("$candidate")
+    done < <(ac_agents_for_persona "$persona")
+
+    [ "${#candidates[@]}" -gt 0 ] || return 1
+    pick_free_worker_from_candidates "$persona" "${candidates[@]}"
+}
+
+dependencies_satisfied() {
+    local task_file="$1"
+    local dep_id
+    while IFS= read -r dep_id; do
+        [ -n "$dep_id" ] || continue
+        ac_task_is_done "$dep_id" || return 1
+    done < <(ac_read_yaml_list "$task_file" "depends_on")
+    return 0
+}
+
+notify_worker_for_task() {
+    local task_file="$1"
+    local task_id persona worker_id message
+
+    task_id=$(ac_read_yaml_scalar "$task_file" "id")
+    persona=$(ac_read_yaml_scalar "$task_file" "persona")
+    worker_id=$(ac_read_yaml_scalar "$task_file" "assigned_to")
+    [ -n "$worker_id" ] || return 1
+
+    message="${AC_RESET_COMMAND}"$'\n'"$(ac_render_worker_notify_message "$persona" "$task_id" "$task_file")"
+    ac_send_direct_message "$worker_id" "$message"
+}
+
+find_latest_report_event_for_task() {
+    local task_id="$1"
+    local report_file report_task_id
+
+    while IFS= read -r report_file; do
+        [ -f "$report_file" ] || continue
+        report_task_id="$(ac_read_yaml_scalar "$report_file" "task_id")"
+        if [ "$report_task_id" = "$task_id" ]; then
+            printf '%s\n' "$report_file"
+            return 0
+        fi
+    done < <(find "$REPORT_EVENTS_DIR" -maxdepth 1 -type f -name '*.yaml' | sort -r)
+
+    return 1
+}
+
+create_review_group_note() {
+    local parent_id="$1"
+    local content="$2"
+    local note_path
+    note_path="${REWORK_DIR}/${parent_id}_review.md"
+    {
+        printf '# Review Group %s\n' "$parent_id"
+        echo
+        printf '%s\n' "$content"
+    } > "$note_path"
+    printf '%s\n' "$note_path"
+}
+
+expand_pending_review_groups() {
+    local parent_file parent_id now_iso destination child_id child_path reviewer_id cycle_id count
+    local target_file existing_file
+    local child_read_files=()
+    local parent_read_files=()
+    local parent_write_files=()
+
+    while IFS= read -r parent_file; do
+        [ -f "$parent_file" ] || continue
+        [ "$(ac_read_yaml_scalar "$parent_file" "persona")" = "reviewer" ] || continue
+        [ -z "$(ac_read_yaml_scalar "$parent_file" "review_parent_id")" ] || continue
+        [ "$(ac_read_yaml_scalar "$parent_file" "status")" = "pending" ] || continue
+        dependencies_satisfied "$parent_file" || continue
+
+        mapfile -t reviewer_ids < <(ac_section_agent_ids reviewer)
+        [ "${#reviewer_ids[@]}" -gt 0 ] || continue
+
+        read_review_cycle_state
+        cycle_id=$((REVIEW_CYCLE_ID + 1))
+        REVIEW_CYCLE_ID="$cycle_id"
+        REVIEW_CYCLE_ACTIVE=1
+        parent_id="$(ac_read_yaml_scalar "$parent_file" "id")"
+        REVIEW_TARGET_SIGNATURE="$parent_id"
+        save_review_cycle_state
+
+        now_iso="$(ac_now_iso)"
+        count="${#reviewer_ids[@]}"
+        mapfile -t parent_write_files < <(ac_read_yaml_list "$parent_file" "write_files")
+        mapfile -t parent_read_files < <(ac_read_yaml_list "$parent_file" "read_files")
+        for reviewer_id in "${reviewer_ids[@]}"; do
+            child_id="${parent_id}__${reviewer_id}"
+            child_path="${REVIEW_PENDING_DIR}/${child_id}.yaml"
+            cp "$parent_file" "$child_path"
+            child_read_files=()
+            for existing_file in "${parent_read_files[@]}"; do
+                existing_file="$(ac_trim "$existing_file")"
+                [ -n "$existing_file" ] || continue
+                child_read_files+=("$existing_file")
+            done
+            for target_file in "${parent_write_files[@]}"; do
+                target_file="$(ac_trim "$target_file")"
+                [ -n "$target_file" ] || continue
+                if printf '%s\n' "${child_read_files[@]}" | grep -Fxq "$target_file"; then
+                    continue
+                fi
+                child_read_files+=("$target_file")
+            done
+            ac_replace_yaml_list_block "$child_path" "write_files"
+            ac_replace_yaml_list_block "$child_path" "read_files" "${child_read_files[@]}"
+            ac_set_yaml_scalar "$child_path" "exclusive_group" ""
+            ac_set_yaml_scalar "$child_path" "id" "$child_id"
+            ac_set_yaml_scalar "$child_path" "assigned_to" "$reviewer_id"
+            ac_set_yaml_scalar "$child_path" "status" "pending"
+            ac_set_yaml_scalar "$child_path" "updated_at" "$now_iso"
+            ac_set_yaml_scalar "$child_path" "review_parent_id" "$parent_id"
+            ac_set_yaml_scalar "$child_path" "review_cycle_id" "$cycle_id"
+        done
+
+        ac_set_yaml_scalar "$parent_file" "assigned_to" "reviewers"
+        ac_set_yaml_scalar "$parent_file" "status" "inflight"
+        ac_set_yaml_scalar "$parent_file" "updated_at" "$now_iso"
+        ac_set_yaml_scalar "$parent_file" "review_cycle_id" "$cycle_id"
+        ac_set_yaml_scalar "$parent_file" "reviewer_target_count" "$count"
+        destination="${REVIEW_INFLIGHT_DIR}/$(basename "$parent_file")"
+        mv "$parent_file" "$destination"
+
+        ac_log "✅ review fan-out: ${parent_id} -> ${count} reviewers"
+    done < <(find "$REVIEW_PENDING_DIR" -maxdepth 1 -type f -name '*.yaml' | sort)
+}
+
+finalize_review_groups() {
+    local parent_file parent_id cycle_id now_iso command_id note_path
+    local reviewer_id child_id child_file child_state report_file review_decision result summary details findings_text target reviewer reviewer_count
+    local all_ready any_requestchange aggregate_body
+    local findings_items=()
+    local rework_targets=()
+
+    while IFS= read -r parent_file; do
+        [ -f "$parent_file" ] || continue
+        [ "$(ac_read_yaml_scalar "$parent_file" "persona")" = "reviewer" ] || continue
+        [ "$(ac_read_yaml_scalar "$parent_file" "assigned_to")" = "reviewers" ] || continue
+        parent_id="$(ac_read_yaml_scalar "$parent_file" "id")"
+        [ -n "$parent_id" ] || continue
+
+        mapfile -t reviewer_ids < <(ac_section_agent_ids reviewer)
+        [ "${#reviewer_ids[@]}" -gt 0 ] || continue
+
+        all_ready=1
+        any_requestchange=0
+        aggregate_body=""
+        command_id="$(ac_read_yaml_scalar "$parent_file" "command_id")"
+
+        for reviewer_id in "${reviewer_ids[@]}"; do
+            child_id="${parent_id}__${reviewer_id}"
+            child_file="$(ac_find_task_file_by_id "$child_id" 2>/dev/null || true)"
+            if [ -z "$child_file" ]; then
+                all_ready=0
+                break
+            fi
+            child_state="$(ac_task_state_from_path "$child_file")"
+            if [ "$child_state" != "done" ]; then
+                all_ready=0
+                break
+            fi
+
+            report_file="$(find_latest_report_event_for_task "$child_id" 2>/dev/null || true)"
+            if [ -z "$report_file" ]; then
+                all_ready=0
+                break
+            fi
+
+            review_decision="$(ac_read_yaml_scalar "$report_file" "review_decision")"
+            result="$(ac_read_yaml_scalar "$report_file" "result")"
+            [ -n "$command_id" ] || command_id="$(ac_read_yaml_scalar "$report_file" "command_id")"
+
+            if [ "$review_decision" = "requestchange" ]; then
+                any_requestchange=1
+            fi
+
+            reviewer="$reviewer_id"
+            summary="$(ac_read_yaml_block "$report_file" "summary")"
+            details="$(ac_read_yaml_block "$report_file" "details")"
+            findings_items=()
+            mapfile -t findings_items < <(ac_read_yaml_list "$report_file" "findings")
+            rework_targets=()
+            mapfile -t rework_targets < <(ac_read_yaml_list "$report_file" "rework_targets")
+
+            findings_text=""
+            for target in "${findings_items[@]}"; do
+                target="$(ac_trim "$target")"
+                [ -n "$target" ] || continue
+                findings_text+="- ${target}"$'\n'
+            done
+            findings_text="${findings_text%$'\n'}"
+
+            aggregate_body+="## ${reviewer}"$'\n'
+            aggregate_body+="task_id: ${child_id}"$'\n'
+            aggregate_body+="result: ${result}"$'\n'
+            aggregate_body+="review_decision: ${review_decision}"$'\n'
+            if [ "${#rework_targets[@]}" -gt 0 ]; then
+                aggregate_body+="rework_targets: $(IFS=', '; printf '%s' "${rework_targets[*]}")"$'\n'
+            fi
+            aggregate_body+="summary:"$'\n'"${summary:-"(empty)"}"$'\n'
+            aggregate_body+="details:"$'\n'"${details:-"(empty)"}"$'\n'
+            if [ -n "$findings_text" ]; then
+                aggregate_body+="findings:"$'\n'"${findings_text}"$'\n'
+            fi
+            aggregate_body+=$'\n'
+        done
+
+        [ "$all_ready" -eq 1 ] || continue
+
+        now_iso="$(ac_now_iso)"
+        cycle_id="$(ac_read_yaml_scalar "$parent_file" "review_cycle_id")"
+        reviewer_count="${#reviewer_ids[@]}"
+        note_path=""
+
+        if [ "$any_requestchange" -eq 1 ]; then
+            note_path="$(create_review_group_note "$parent_id" "$aggregate_body")"
+            ac_set_yaml_scalar "$parent_file" "rework_note_path" "$note_path"
+            ac_set_yaml_scalar "$parent_file" "result" "failure"
+            ac_set_yaml_scalar "$parent_file" "review_decision" "requestchange"
+        else
+            ac_set_yaml_scalar "$parent_file" "result" "success"
+            ac_set_yaml_scalar "$parent_file" "review_decision" "approve"
+        fi
+
+        ac_set_yaml_scalar "$parent_file" "status" "done"
+        ac_set_yaml_scalar "$parent_file" "updated_at" "$now_iso"
+        ac_set_yaml_scalar "$parent_file" "completed_at" "$now_iso"
+        mv "$parent_file" "${REVIEW_DONE_DIR}/$(basename "$parent_file")"
+
+        read_review_cycle_state
+        REVIEW_CYCLE_ACTIVE=0
+        REVIEW_TARGET_SIGNATURE=""
+        if [ "$any_requestchange" -eq 0 ]; then
+            REVIEW_LAST_APPROVED_SIGNATURE="$parent_id"
+        fi
+        save_review_cycle_state
+
+        ac_send_direct_message task_author "$(ac_render_review_group_update_message "$parent_id" "$([ "$any_requestchange" -eq 1 ] && printf 'failure' || printf 'success')" "$([ "$any_requestchange" -eq 1 ] && printf 'requestchange' || printf 'approve')" "$command_id" "$reviewer_count" "$note_path")"
+        ac_log "✅ review group finalized: ${parent_id}"
+    done < <(find "$REVIEW_INFLIGHT_DIR" -maxdepth 1 -type f -name '*.yaml' | sort)
+}
+
+dispatch_directory() {
+    local pending_dir="$1"
+    local inflight_dir="$2"
+    local task_file assigned_to worker_id now_iso destination task_id was_preassigned
+    local pending_files=()
+
+    while IFS= read -r task_file; do
+        pending_files+=("$task_file")
+    done < <(find "$pending_dir" -maxdepth 1 -type f -name '*.yaml' | sort)
+
+    for task_file in "${pending_files[@]}"; do
+        [ -f "$task_file" ] || continue
+        dependencies_satisfied "$task_file" || continue
+
+        assigned_to=$(ac_read_yaml_scalar "$task_file" "assigned_to")
+        was_preassigned=0
+        if [ -n "$assigned_to" ]; then
+            ac_validate_worker_id "$assigned_to"
+            is_worker_busy "$assigned_to" && continue
+            worker_id="$assigned_to"
+            was_preassigned=1
+        else
+            worker_id="$(pick_free_worker_for_task "$task_file")" || continue
+        fi
+
+        if ! ac_acquire_task_locks "$task_file"; then
+            continue
+        fi
+
+        now_iso=$(ac_now_iso)
+        ac_set_yaml_scalar "$task_file" "assigned_to" "$worker_id"
+        ac_set_yaml_scalar "$task_file" "status" "inflight"
+        ac_set_yaml_scalar "$task_file" "updated_at" "$now_iso"
+        destination="${inflight_dir}/$(basename "$task_file")"
+        mv "$task_file" "$destination"
+
+        if notify_worker_for_task "$destination"; then
+            task_id=$(ac_read_yaml_scalar "$destination" "id")
+            ac_log "✅ task dispatched: ${task_id} -> ${worker_id}"
+        else
+            ac_release_task_locks "$destination"
+            if [ "$was_preassigned" -eq 0 ]; then
+                ac_set_yaml_scalar "$destination" "assigned_to" ""
+            fi
+            ac_set_yaml_scalar "$destination" "status" "pending"
+            ac_set_yaml_scalar "$destination" "updated_at" "$now_iso"
+            mv "$destination" "$task_file"
+        fi
+    done
+}
+
+process_send_outbox() {
+    local event_file channel target title message sent_path
+
+    for event_file in "${EVENT_OUTBOX_DIR}"/*.yaml; do
+        [ -f "$event_file" ] || continue
+        channel=$(ac_read_yaml_scalar "$event_file" "channel")
+        target=$(ac_read_yaml_scalar "$event_file" "target")
+        title=$(ac_read_yaml_scalar "$event_file" "title")
+        message=$(ac_read_yaml_block "$event_file" "message")
+        [ -n "$message" ] || message="(empty)"
+
+        case "$channel" in
+            agent|'')
+                if ! "${SCRIPT_DIR}/send-msg.sh" "$target" "$message" >/dev/null 2>&1; then
+                    continue
+                fi
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        sent_path="${EVENT_SENT_DIR}/$(basename "$event_file")"
+        mv "$event_file" "$sent_path"
+        ac_log "✅ outbox processed: ${title:-message} -> ${target}"
+    done
+}
+
+process_command_queue() {
+    local command_file command_id key command_text
+
+    command_file="${COMMANDS_DIR}/command.yaml"
+    [ -f "$command_file" ] || return 0
+    [ "$(ac_read_yaml_scalar "$command_file" "status")" = "pending" ] || return 0
+
+    command_id=$(ac_read_yaml_scalar "$command_file" "id")
+    [ -n "$command_id" ] || command_id="command_unknown"
+    key="${command_id}|$(ac_read_yaml_scalar "$command_file" "updated_at")"
+    set_contains_line "$COMMAND_NOTIFY_STATE_FILE" "$key" && return 0
+
+    command_text=$(ac_read_yaml_block "$command_file" "command")
+    [ -n "$command_text" ] || command_text="command.yaml を確認してください。"
+
+    ac_send_direct_message task_author "${AC_RESET_COMMAND}
+$(ac_render_command_notify_message "$command_file" "$command_text")"
+
+    set_add_line "$COMMAND_NOTIFY_STATE_FILE" "$key"
+}
+
+append_answer_to_task_context() {
+    local task_file="$1"
+    local question_file="$2"
+    local question_id question answer current_context entry
+
+    question_id=$(ac_read_yaml_scalar "$question_file" "id")
+    question=$(ac_read_yaml_block "$question_file" "question")
+    answer=$(ac_read_yaml_block "$question_file" "answer")
+    current_context=$(ac_read_yaml_block "$task_file" "question_context")
+
+    entry="[${question_id}]"$'\n'"question:"$'\n'"${question}"$'\n'"answer:"$'\n'"${answer}"
+    if [ -n "$current_context" ]; then
+        current_context="${current_context}"$'\n\n'"${entry}"
+    else
+        current_context="${entry}"
+    fi
+
+    ac_replace_yaml_multiline_block "$task_file" "question_context" "$current_context"
+}
+
+resume_tasks_from_answered_questions() {
+    local question_file question_id task_file blocked_reason now_iso destination
+
+    for question_file in "${QUESTION_ANSWERED_DIR}"/*.yaml; do
+        [ -f "$question_file" ] || continue
+        question_id=$(ac_read_yaml_scalar "$question_file" "id")
+        [ -n "$question_id" ] || question_id="$(basename "$question_file" .yaml)"
+        set_contains_line "$QUESTION_RESUME_STATE_FILE" "$question_id" && continue
+
+        for task_file in "${TASK_BLOCKED_DIR}"/*.yaml; do
+            [ -f "$task_file" ] || continue
+            blocked_reason=$(ac_read_yaml_scalar "$task_file" "blocked_reason")
+            [ "$blocked_reason" = "question:${question_id}" ] || continue
+
+            append_answer_to_task_context "$task_file" "$question_file"
+            now_iso=$(ac_now_iso)
+            ac_set_yaml_scalar "$task_file" "status" "pending"
+            ac_set_yaml_scalar "$task_file" "blocked_reason" ""
+            ac_set_yaml_scalar "$task_file" "updated_at" "$now_iso"
+            destination="${TASK_PENDING_DIR}/$(basename "$task_file")"
+            mv "$task_file" "$destination"
+            ac_log "✅ task resumed from answer: $(ac_read_yaml_scalar "$destination" "id")"
+        done
+
+        set_add_line "$QUESTION_RESUME_STATE_FILE" "$question_id"
+    done
+}
+
+process_open_questions_notify() {
+    local question_file question_id task_id asked_by question
+
+    for question_file in "${QUESTION_OPEN_DIR}"/*.yaml; do
+        [ -f "$question_file" ] || continue
+        question_id=$(ac_read_yaml_scalar "$question_file" "id")
+        [ -n "$question_id" ] || question_id="$(basename "$question_file" .yaml)"
+        set_contains_line "$QUESTION_NOTIFY_STATE_FILE" "$question_id" && continue
+
+        task_id=$(ac_read_yaml_scalar "$question_file" "task_id")
+        asked_by=$(ac_read_yaml_scalar "$question_file" "asked_by")
+        question=$(ac_read_yaml_block "$question_file" "question")
+
+        ac_send_direct_message coordinator "$(ac_render_open_question_notify_message "$question_id" "$task_id" "$asked_by" "$question_file" "$question")"
+        set_add_line "$QUESTION_NOTIFY_STATE_FILE" "$question_id"
+    done
+}
+
+process_report_notifications() {
+    local report_file key persona task_type task_id result command_id artifact review_decision review_parent_id
+
+    for report_file in "${REPORT_EVENTS_DIR}"/*.yaml; do
+        [ -f "$report_file" ] || continue
+        key="$(basename "$report_file")"
+        set_contains_line "$REPORT_NOTIFY_STATE_FILE" "$key" && continue
+
+        persona=$(ac_read_yaml_scalar "$report_file" "persona")
+        task_type=$(ac_read_yaml_scalar "$report_file" "type")
+        task_id=$(ac_read_yaml_scalar "$report_file" "task_id")
+        result=$(ac_read_yaml_scalar "$report_file" "result")
+        command_id=$(ac_read_yaml_scalar "$report_file" "command_id")
+        artifact=$(ac_read_yaml_scalar "$report_file" "result_artifact_path")
+        review_decision=$(ac_read_yaml_scalar "$report_file" "review_decision")
+        review_parent_id=$(ac_read_yaml_scalar "$report_file" "review_parent_id")
+
+        case "$persona" in
+            investigation|analyst)
+                ac_send_direct_message task_author "$(ac_render_report_research_complete_message "$task_id" "$persona" "$result" "$command_id" "$artifact")"
+                ;;
+            tester)
+                ac_send_direct_message task_author "$(ac_render_report_tester_update_message "$task_id" "$result" "$command_id")"
+                ;;
+            reviewer)
+                if [ -z "$review_parent_id" ]; then
+                    ac_send_direct_message task_author "$(ac_render_report_reviewer_update_message "$task_id" "$result" "$review_decision" "$command_id")"
+                fi
+                ;;
+            *)
+                ac_send_direct_message task_author "$(ac_render_report_generic_complete_message "$task_id" "$persona" "$task_type" "$result" "$command_id")"
+                ;;
+        esac
+
+        set_add_line "$REPORT_NOTIFY_STATE_FILE" "$key"
+    done
+}
+
+refresh_current_status() {
+    local worker_id worker_state started_at
+    started_at="$(ac_read_yaml_scalar "${STATUS_DIR}/current.yaml" "started_at")"
+    [ -n "$started_at" ] || started_at="$(date -Iseconds)"
+    {
+        echo "session: \"${AC_TMUX_SESSION_NAME}\""
+        echo "started_at: \"${started_at}\""
+        echo "coordinator: \"online\""
+        echo "task_author: \"online\""
+        echo "dispatcher: \"online\""
+        echo "workers:"
+        while IFS= read -r worker_id; do
+            [ -n "$worker_id" ] || continue
+            if is_worker_busy "$worker_id"; then
+                worker_state="busy"
+            else
+                worker_state="idle"
+            fi
+            echo "  ${worker_id}: \"${worker_state}\""
+        done < <(ac_worker_ids)
+    } > "${STATUS_DIR}/current.yaml"
+}
+
+main_loop() {
+    while true; do
+        process_send_outbox
+        process_command_queue
+        process_open_questions_notify
+        resume_tasks_from_answered_questions
+        expand_pending_review_groups
+        process_report_notifications
+        finalize_review_groups
+        dispatch_directory "$TASK_PENDING_DIR" "$TASK_INFLIGHT_DIR"
+        dispatch_directory "$REVIEW_PENDING_DIR" "$REVIEW_INFLIGHT_DIR"
+        refresh_current_status
+        sleep "$SWEEP_INTERVAL_SECONDS"
+    done
+}
+
+init_runtime
+run_tmux_snapshot_loop &
+TMUX_SNAPSHOT_LOOP_PID="$!"
+main_loop

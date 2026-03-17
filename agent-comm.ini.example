@@ -1,0 +1,18 @@
+[runtime]
+agent_working_dir = ../
+language = en
+codex_home = ~/.codex
+dangerously_bypass_approvals_and_sandbox = false
+
+[tmux]
+# blank = auto-generated from repo path
+session_name =
+
+[ui]
+auto_start = true
+port = 43861
+open_browser = false
+language =
+
+[roles]
+extra_paths =

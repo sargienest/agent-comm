@@ -1,0 +1,36 @@
+.runtime/
+agent-comm.ini
+agents.ini
+
+# Local environment files
+.env
+.env.*
+!.env.example
+*.local
+
+# Python cache and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+.python-version
+
+# JavaScript dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

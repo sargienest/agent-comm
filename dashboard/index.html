@@ -1,0 +1,3771 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Agent Comm Dashboard</title>
+    <link rel="icon" href="data:,">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-0: #030710;
+            --bg-1: #091223;
+            --bg-2: #0f2037;
+            --panel: linear-gradient(172deg, rgba(17, 30, 48, 0.92), rgba(9, 18, 31, 0.86));
+            --panel-strong: rgba(6, 14, 24, 0.96);
+            --line: rgba(156, 191, 216, 0.2);
+            --line-strong: rgba(255, 176, 92, 0.52);
+            --text: #f2f7ff;
+            --subtext: #9cb1c8;
+            --accent: #ffa24f;
+            --accent-2: #38d8d0;
+            --good: #49d09b;
+            --warn: #ffc166;
+            --bad: #ff7c86;
+            --info: #80bfff;
+            --radius-xl: 26px;
+            --radius-lg: 16px;
+            --shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            min-height: 100%;
+            color: var(--text);
+            font-family: 'Noto Sans JP', sans-serif;
+            background:
+                radial-gradient(circle at 0% 0%, rgba(255, 162, 79, 0.16), transparent 26%),
+                radial-gradient(circle at 100% 12%, rgba(56, 216, 208, 0.12), transparent 30%),
+                radial-gradient(circle at 70% 100%, rgba(73, 126, 228, 0.18), transparent 34%),
+                linear-gradient(156deg, var(--bg-0), var(--bg-1) 50%, var(--bg-2) 100%);
+            background-attachment: fixed;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.2;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 34px 34px;
+        }
+
+        .layout {
+            width: min(1660px, 100%);
+            margin: 0 auto;
+            padding: 18px 14px 36px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .top {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto auto;
+            grid-template-areas: 'title language actions';
+            align-items: start;
+            gap: 22px 14px;
+            margin-bottom: 14px;
+            padding: 14px 16px;
+            border-radius: var(--radius-xl);
+            border: 1px solid rgba(156, 191, 216, 0.24);
+            background:
+                linear-gradient(115deg, rgba(255, 162, 79, 0.14), transparent 38%),
+                linear-gradient(175deg, rgba(18, 36, 58, 0.92), rgba(10, 20, 32, 0.86));
+            box-shadow: var(--shadow);
+            min-width: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .top::after {
+            content: '';
+            position: absolute;
+            inset: auto -20% -60% -20%;
+            height: 140px;
+            background: radial-gradient(circle at center, rgba(255, 162, 79, 0.22), transparent 70%);
+            pointer-events: none;
+        }
+
+        .top>* {
+            min-width: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .title-wrap {
+            grid-area: title;
+            min-width: 0;
+        }
+
+        .title-copy {
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .title-wrap h1 {
+            margin: 0;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(20px, 2.1vw, 30px);
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            line-height: 1.02;
+            text-wrap: balance;
+        }
+
+        .title-copy p {
+            margin: 0;
+            color: var(--subtext);
+            font-size: 12px;
+            letter-spacing: 0.03em;
+        }
+
+        .top-tags {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .top-tag {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid rgba(156, 191, 216, 0.3);
+            background: rgba(8, 19, 30, 0.82);
+            color: #d9e9f8;
+            padding: 3px 9px;
+            font-size: 9px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .top-actions {
+            grid-area: actions;
+            display: grid;
+            gap: 8px;
+            justify-self: end;
+            min-width: 0;
+            justify-items: end;
+        }
+
+        .top-actions>* {
+            min-width: 0;
+        }
+
+        .top-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
+        .top-last-update {
+            color: rgba(156, 191, 216, 0.68);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .top-last-update .value {
+            color: rgba(242, 247, 255, 0.82);
+            font-size: 11px;
+            letter-spacing: 0.03em;
+            text-transform: none;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 999px;
+            border: 1px solid var(--line);
+            background: rgba(7, 17, 29, 0.92);
+            color: var(--subtext);
+            padding: 9px 16px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+        }
+
+        .badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--warn);
+        }
+
+        .badge.live::before {
+            background: var(--good);
+            box-shadow: 0 0 0 0 rgba(73, 208, 155, 0.6);
+            animation: pulse 1.6s infinite;
+        }
+
+        .badge.retrying::before {
+            background: var(--warn);
+        }
+
+        .badge.error::before {
+            background: var(--bad);
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(73, 208, 155, 0.6);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(73, 208, 155, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(73, 208, 155, 0);
+            }
+        }
+
+        .btn {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: linear-gradient(170deg, rgba(15, 34, 51, 0.96), rgba(8, 18, 30, 0.92));
+            color: var(--text);
+            padding: 10px 13px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            border-color: var(--line-strong);
+            box-shadow: 0 10px 22px rgba(255, 162, 79, 0.22);
+        }
+
+        .lang-switch {
+            display: inline-grid;
+            gap: 4px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: rgba(7, 17, 29, 0.92);
+            align-self: start;
+        }
+
+        .top-language {
+            grid-area: language;
+            justify-self: start;
+        }
+
+        .lang-select-label {
+            color: var(--subtext);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .lang-select {
+            min-width: 140px;
+            border: 1px solid rgba(156, 191, 216, 0.24);
+            border-radius: 10px;
+            background: rgba(4, 12, 21, 0.94);
+            color: var(--text);
+            padding: 7px 32px 7px 10px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            appearance: none;
+            cursor: pointer;
+            background-image:
+                linear-gradient(45deg, transparent 50%, rgba(255, 162, 79, 0.92) 50%),
+                linear-gradient(135deg, rgba(255, 162, 79, 0.92) 50%, transparent 50%);
+            background-position:
+                calc(100% - 18px) calc(50% - 2px),
+                calc(100% - 12px) calc(50% - 2px);
+            background-size: 6px 6px, 6px 6px;
+            background-repeat: no-repeat;
+        }
+
+        .lang-select:focus {
+            outline: 1px solid var(--line-strong);
+            border-color: var(--line-strong);
+        }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tab-btn {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(6, 16, 27, 0.88);
+            color: var(--subtext);
+            padding: 8px 13px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            border-color: var(--line-strong);
+            background: linear-gradient(170deg, rgba(255, 162, 79, 0.2), rgba(56, 216, 208, 0.1));
+        }
+
+        .tab-panel {
+            display: none;
+            min-width: 0;
+        }
+
+        .tab-panel.is-active {
+            display: block;
+        }
+
+        #tabOverview.is-active {
+            display: grid;
+            gap: 12px;
+        }
+
+        .overview-mode-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .mode-btn {
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(6, 16, 27, 0.82);
+            color: var(--subtext);
+            padding: 7px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+        }
+
+        .mode-btn.active {
+            color: #fff;
+            border-color: var(--line-strong);
+            background: linear-gradient(170deg, rgba(255, 162, 79, 0.18), rgba(56, 216, 208, 0.08));
+        }
+
+        .overview-mode-panel {
+            display: none;
+            min-width: 0;
+        }
+
+        .overview-mode-panel.is-active {
+            display: grid;
+            gap: 12px;
+        }
+
+        .card {
+            border-radius: var(--radius-lg);
+            background: var(--panel);
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+            min-width: 0;
+        }
+
+        .ops-strip {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .ops-strip>* {
+            min-width: 0;
+        }
+
+        .ops-metric {
+            position: relative;
+            overflow: hidden;
+            min-height: 58px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(156, 191, 216, 0.22);
+            background:
+                linear-gradient(160deg, rgba(255, 162, 79, 0.1), transparent 52%),
+                linear-gradient(178deg, rgba(8, 18, 29, 0.88), rgba(6, 14, 24, 0.9));
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 2px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.24);
+        }
+
+        .ops-metric::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(145deg, rgba(255, 162, 79, 0.16), transparent 46%),
+                linear-gradient(315deg, rgba(56, 216, 208, 0.1), transparent 62%);
+            pointer-events: none;
+        }
+
+        .metric-label {
+            color: var(--subtext);
+            font-size: 9px;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .metric-value {
+            color: #fff;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(13px, 1.1vw, 16px);
+            line-height: 1.18;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+        }
+
+        .metric-meta {
+            color: var(--subtext);
+            font-size: 9px;
+            line-height: 1.3;
+        }
+
+        .ops-panel {
+            border: 1px solid rgba(156, 191, 216, 0.2);
+            border-radius: 14px;
+            background: linear-gradient(175deg, rgba(9, 21, 34, 0.9), rgba(6, 14, 24, 0.88));
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+            grid-template-areas: 'feed focus';
+            gap: 12px;
+            min-width: 0;
+            align-items: start;
+        }
+
+        .overview-feed {
+            grid-area: feed;
+        }
+
+        .overview-focus {
+            grid-area: focus;
+            display: grid;
+            gap: 10px;
+            align-content: start;
+        }
+
+        .overview-workers {
+            margin-top: 2px;
+        }
+
+        .panel {
+            padding: 12px;
+            min-width: 0;
+        }
+
+        .panel h2 {
+            margin: 0;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 9px;
+            min-width: 0;
+        }
+
+        .panel-head>* {
+            min-width: 0;
+        }
+
+        .muted {
+            color: var(--subtext);
+            font-size: 11px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .timeline {
+            display: grid;
+            gap: 8px;
+            max-height: min(58vh, 700px);
+            overflow: auto;
+            padding-right: 4px;
+            min-width: 0;
+        }
+
+        .overview-feed .timeline {
+            max-height: min(68vh, 820px);
+        }
+
+        .timeline.timeline-compact {
+            max-height: min(43vh, 460px);
+        }
+
+        .timeline-item {
+            position: relative;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: linear-gradient(168deg, rgba(13, 30, 46, 0.92), rgba(7, 16, 28, 0.9));
+            padding: 9px 10px 9px 14px;
+            display: grid;
+            gap: 5px;
+            min-width: 0;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .timeline-item.item-new {
+            animation: timelineItemReveal 620ms cubic-bezier(0.21, 0.84, 0.31, 1) both;
+            animation-delay: var(--item-delay, 0ms);
+        }
+
+        @keyframes timelineItemReveal {
+            0% {
+                opacity: 0;
+                transform: translateY(10px) scale(0.985);
+                filter: blur(3px);
+            }
+
+            58% {
+                opacity: 1;
+                transform: translateY(-2px) scale(1.008);
+                filter: blur(0);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            border-radius: 12px 0 0 12px;
+            background: linear-gradient(180deg, var(--info), transparent);
+        }
+
+        .timeline-item.state-success::before,
+        .timeline-item.state-done::before,
+        .timeline-item.state-approve::before {
+            background: linear-gradient(180deg, var(--good), transparent);
+        }
+
+        .timeline-item.state-failure::before,
+        .timeline-item.state-requestchange::before,
+        .timeline-item.state-error::before {
+            background: linear-gradient(180deg, var(--bad), transparent);
+        }
+
+        .timeline-item:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255, 176, 92, 0.42);
+        }
+
+        .item-top {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .item-top>* {
+            min-width: 0;
+        }
+
+        .timeline-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #f4fbff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .timeline-summary {
+            color: var(--subtext);
+            font-size: 11px;
+            line-height: 1.46;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .focus-block {
+            border-radius: 12px;
+            border: 1px solid rgba(156, 191, 216, 0.2);
+            background: rgba(8, 17, 29, 0.76);
+            padding: 9px;
+            min-width: 0;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid transparent;
+            padding: 3px 8px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            max-width: 100%;
+        }
+
+        .chip.done,
+        .chip.success,
+        .chip.approve,
+        .chip.idle,
+        .chip.live {
+            border-color: rgba(73, 208, 155, 0.5);
+            background: rgba(73, 208, 155, 0.18);
+            color: #95ebc6;
+        }
+
+        .chip.inflight,
+        .chip.running,
+        .chip.attention,
+        .chip.reviewing,
+        .chip.task_breakdown,
+        .chip.research_dispatching {
+            border-color: rgba(255, 193, 102, 0.48);
+            background: rgba(255, 193, 102, 0.18);
+            color: #ffe1aa;
+        }
+
+        .chip.pending,
+        .chip.queued,
+        .chip.unknown {
+            border-color: rgba(128, 191, 255, 0.48);
+            background: rgba(128, 191, 255, 0.17);
+            color: #cfe7ff;
+        }
+
+        .chip.blocked,
+        .chip.failure,
+        .chip.requestchange,
+        .chip.error,
+        .chip.offline {
+            border-color: rgba(255, 124, 134, 0.5);
+            background: rgba(255, 124, 134, 0.16);
+            color: #ffd1d6;
+        }
+
+        .workers {
+            display: grid;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .worker-group {
+            display: grid;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(156, 191, 216, 0.18);
+            background: linear-gradient(176deg, rgba(8, 18, 30, 0.72), rgba(6, 14, 24, 0.86));
+            min-width: 0;
+        }
+
+        .worker-group-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .worker-group-label {
+            color: #eef6ff;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .worker-group-meta {
+            color: var(--subtext);
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .worker-group-grid {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            min-width: 0;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 162, 79, 0.4) rgba(7, 18, 30, 0.2);
+        }
+
+        .worker-group-grid::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .worker-group-grid::-webkit-scrollbar-track {
+            background: rgba(7, 18, 30, 0.2);
+            border-radius: 999px;
+        }
+
+        .worker-group-grid::-webkit-scrollbar-thumb {
+            background: rgba(255, 162, 79, 0.4);
+            border-radius: 999px;
+        }
+
+        .worker-row {
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: rgba(7, 18, 30, 0.86);
+            padding: 8px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            min-width: 0;
+            min-height: 58px;
+            min-width: 168px;
+            flex: 1 0 168px;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .worker-row.state-shift {
+            animation: workerStateShift 840ms cubic-bezier(0.2, 0.86, 0.3, 1) both;
+        }
+
+        @keyframes workerStateShift {
+            0% {
+                transform: translateY(0) scale(1);
+                box-shadow: 0 0 0 rgba(255, 176, 92, 0);
+            }
+
+            44% {
+                transform: translateY(-2px) scale(1.01);
+                box-shadow: 0 12px 24px rgba(255, 176, 92, 0.22);
+            }
+
+            100% {
+                transform: translateY(0) scale(1);
+                box-shadow: 0 0 0 rgba(255, 176, 92, 0);
+            }
+        }
+
+        .worker-row:hover {
+            transform: translateY(-1px);
+        }
+
+        .worker-row.state-idle {
+            border-color: rgba(73, 208, 155, 0.45);
+        }
+
+        .worker-row.state-inflight,
+        .worker-row.state-running,
+        .worker-row.state-attention,
+        .worker-row.state-task_breakdown,
+        .worker-row.state-research_dispatching {
+            border-color: rgba(255, 193, 102, 0.45);
+        }
+
+        .worker-row.state-blocked,
+        .worker-row.state-offline {
+            border-color: rgba(255, 124, 134, 0.45);
+        }
+
+        .worker-row>* {
+            min-width: 0;
+        }
+
+        .worker-row-main {
+            display: grid;
+            gap: 3px;
+            min-height: 24px;
+        }
+
+        .worker-row strong {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .worker-row .chips {
+            width: auto;
+            justify-content: flex-end;
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+
+        .command-box {
+            margin-top: 7px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: var(--panel-strong);
+            color: #e1f1ff;
+            padding: 8px 9px;
+            font-size: 11px;
+            line-height: 1.44;
+            max-height: 180px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .active-focus {
+            padding-top: 10px;
+        }
+
+        .active-columns {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .active-column {
+            border: 1px solid rgba(156, 191, 216, 0.2);
+            border-radius: 12px;
+            background: rgba(6, 15, 24, 0.72);
+            padding: 8px;
+            min-width: 0;
+        }
+
+        .active-column-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 7px;
+        }
+
+        .active-column-head strong {
+            font-size: 12px;
+            font-weight: 700;
+            color: #eaf4ff;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .active-list {
+            display: grid;
+            gap: 7px;
+            max-height: 210px;
+            overflow: auto;
+            padding-right: 3px;
+            min-width: 0;
+        }
+
+        .active-item {
+            border: 1px solid rgba(156, 191, 216, 0.2);
+            border-radius: 10px;
+            background: rgba(8, 20, 32, 0.84);
+            padding: 7px 8px;
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .active-item-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .active-item-main {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .active-item-top .chips {
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: nowrap;
+            flex: 0 0 auto;
+            max-width: 100%;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .active-item-top .chips::-webkit-scrollbar {
+            display: none;
+        }
+
+        .active-item-top .chips .chip {
+            flex: 0 0 auto;
+        }
+
+        .active-item-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #f2f8ff;
+            line-height: 1.32;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .active-item-meta {
+            color: var(--subtext);
+            font-size: 10px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            background: rgba(7, 20, 32, 0.8);
+        }
+
+        table {
+            width: 100%;
+            min-width: 680px;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 9px 10px;
+            border-bottom: 1px solid rgba(156, 191, 216, 0.16);
+            text-align: left;
+            font-size: 12px;
+            vertical-align: top;
+        }
+
+        th {
+            color: #dcecff;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-weight: 700;
+            background: rgba(7, 17, 28, 0.95);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        td {
+            color: #f2f7ff;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.015);
+        }
+
+        tr.table-clickable {
+            cursor: pointer;
+        }
+
+        tr.table-clickable.row-new td {
+            animation: tableRowPulse 880ms ease both;
+            animation-delay: var(--row-delay, 0ms);
+        }
+
+        @keyframes tableRowPulse {
+            0% {
+                background: rgba(255, 176, 92, 0.3);
+            }
+
+            100% {
+                background: transparent;
+            }
+        }
+
+        tr.table-clickable:focus-visible td {
+            outline: 1px solid rgba(255, 176, 92, 0.58);
+            outline-offset: -1px;
+            background: rgba(255, 176, 92, 0.08);
+        }
+
+        .mono {
+            font-family: 'Space Grotesk', monospace;
+            font-size: 11px;
+            color: #d4e9fb;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .small {
+            margin-top: 2px;
+            color: var(--subtext);
+            font-size: 11px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .warning {
+            margin-top: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 124, 134, 0.45);
+            background: rgba(73, 15, 25, 0.4);
+            color: #ffd6dc;
+            padding: 10px 12px;
+            font-size: 13px;
+        }
+
+        .mobile-list {
+            display: none;
+            gap: 7px;
+        }
+
+        .mobile-item {
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: rgba(8, 19, 30, 0.86);
+            padding: 9px;
+            display: grid;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .mobile-item.clickable {
+            cursor: pointer;
+        }
+
+        .mobile-item.row-new {
+            animation: mobileItemPulse 760ms ease both;
+            animation-delay: var(--row-delay, 0ms);
+        }
+
+        @keyframes mobileItemPulse {
+            0% {
+                transform: translateY(6px) scale(0.99);
+                opacity: 0.2;
+                border-color: rgba(255, 176, 92, 0.6);
+            }
+
+            100% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+                border-color: var(--line);
+            }
+        }
+
+        .mobile-item.clickable:focus-visible {
+            outline: 1px solid rgba(255, 176, 92, 0.58);
+            outline-offset: 1px;
+            background: rgba(255, 176, 92, 0.08);
+        }
+
+        .task-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+        }
+
+        .task-modal[hidden] {
+            display: none;
+        }
+
+        .task-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(2, 8, 14, 0.76);
+            backdrop-filter: blur(3px);
+        }
+
+        .task-modal-card {
+            position: relative;
+            width: min(860px, 100%);
+            max-height: min(88vh, 940px);
+            overflow: auto;
+            border-radius: 14px;
+            border: 1px solid rgba(156, 191, 216, 0.26);
+            background: linear-gradient(176deg, rgba(9, 21, 34, 0.98), rgba(6, 14, 24, 0.96));
+            box-shadow: 0 28px 56px rgba(0, 0, 0, 0.45);
+            padding: 12px;
+        }
+
+        .task-modal-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .task-modal-head h3 {
+            margin: 0;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            line-height: 1.25;
+        }
+
+        .task-modal-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .task-modal-field {
+            border: 1px solid rgba(156, 191, 216, 0.2);
+            border-radius: 10px;
+            background: rgba(7, 18, 30, 0.9);
+            padding: 8px;
+            display: grid;
+            gap: 4px;
+        }
+
+        .task-modal-label {
+            color: var(--subtext);
+            font-size: 10px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .task-modal-value {
+            color: #eef7ff;
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .task-modal-section {
+            border: 1px solid rgba(156, 191, 216, 0.2);
+            border-radius: 10px;
+            background: rgba(6, 16, 27, 0.86);
+            padding: 8px;
+            margin-bottom: 8px;
+            display: grid;
+            gap: 6px;
+        }
+
+        .task-modal-section h4 {
+            margin: 0;
+            color: #f3f8ff;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+        }
+
+        .task-modal-pre {
+            margin: 0;
+            border-radius: 8px;
+            border: 1px solid rgba(156, 191, 216, 0.18);
+            background: rgba(4, 12, 21, 0.9);
+            padding: 8px;
+            color: #e8f4ff;
+            font-family: 'Space Grotesk', monospace;
+            font-size: 12px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 260px;
+            overflow: auto;
+        }
+
+        .task-modal-list {
+            margin: 0;
+            padding-left: 18px;
+            display: grid;
+            gap: 3px;
+        }
+
+        .task-modal-list li {
+            color: #e8f4ff;
+            font-size: 12px;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .task-modal-close {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: rgba(8, 21, 32, 0.92);
+            color: var(--text);
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .mobile-item .main {
+            display: grid;
+            gap: 4px;
+        }
+
+        .mobile-item .main .title {
+            font-size: 12px;
+            line-height: 1.35;
+            font-weight: 700;
+            color: #f4fbff;
+            word-break: break-word;
+        }
+
+        .mobile-item .meta-line {
+            color: var(--subtext);
+            font-size: 10px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .table-desktop {
+            display: block;
+        }
+
+        .agent-console-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            min-width: 0;
+        }
+
+        .agent-console-head>* {
+            min-width: 0;
+        }
+
+        .agent-console-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .agent-console-card {
+            padding: 10px;
+            display: grid;
+            gap: 9px;
+            min-width: 0;
+        }
+
+        .agent-console-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .agent-console-top>* {
+            min-width: 0;
+        }
+
+        .agent-console-title {
+            display: grid;
+            gap: 4px;
+        }
+
+        .agent-console-title strong {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            line-height: 1.25;
+            color: #f4fbff;
+        }
+
+        .history-box {
+            border-radius: 10px;
+            border: 1px solid var(--line);
+            background: rgba(5, 14, 24, 0.9);
+            color: #e3f1ff;
+            font-family: 'Space Grotesk', monospace;
+            font-size: 12px;
+            line-height: 1.42;
+            padding: 9px;
+            min-height: 200px;
+            max-height: 270px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+        }
+
+        .send-box {
+            display: grid;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .dispatcher-shell {
+            display: grid;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .dispatcher-summary {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .dispatcher-summary>* {
+            min-width: 0;
+        }
+
+        .dispatcher-summary-main {
+            display: grid;
+            gap: 4px;
+        }
+
+        .dispatcher-summary-main strong {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            line-height: 1.2;
+            color: #f4fbff;
+        }
+
+        .send-input {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: rgba(6, 17, 27, 0.9);
+            color: #f4fbff;
+            font-family: 'Noto Sans JP', sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            padding: 8px 9px;
+            resize: vertical;
+            min-height: 64px;
+        }
+
+        .send-input:focus {
+            outline: 1px solid var(--line-strong);
+            border-color: var(--line-strong);
+        }
+
+        .send-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
+        .send-feedback {
+            font-size: 11px;
+            color: var(--subtext);
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .send-feedback.error {
+            color: #ffc2c2;
+        }
+
+        .send-feedback.ok {
+            color: #90eebf;
+        }
+
+        .small-btn {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: rgba(8, 21, 32, 0.92);
+            color: var(--text);
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .small-btn:disabled {
+            opacity: 0.7;
+            cursor: wait;
+        }
+
+        @media (max-width: 1320px) {
+            .top {
+                grid-template-columns: minmax(0, 1fr) auto auto;
+                grid-template-areas: 'title language actions';
+                align-items: flex-start;
+            }
+
+            .top-actions {
+                justify-self: end;
+                justify-items: start;
+            }
+
+            .ops-strip {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .overview-grid {
+                grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+                grid-template-areas: 'feed focus';
+            }
+
+            .overview-workers {
+                position: static;
+            }
+
+            .timeline {
+                max-height: 420px;
+            }
+
+            .overview-feed .timeline {
+                max-height: 460px;
+            }
+
+            .timeline.timeline-compact {
+                max-height: 310px;
+            }
+
+            .detail-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .active-columns {
+                grid-template-columns: 1fr;
+            }
+
+            .agent-console-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                width: min(1660px, 100%);
+                padding: 12px 10px 26px;
+            }
+
+            .top {
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .top {
+                margin-bottom: 12px;
+            }
+
+            .title-wrap h1 {
+                font-size: clamp(24px, 8vw, 34px);
+            }
+
+            .ops-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .metric-value {
+                font-size: clamp(14px, 4.4vw, 17px);
+            }
+
+            .panel {
+                padding: 10px;
+            }
+
+            .panel h2 {
+                font-size: 14px;
+            }
+
+            .tab-btn {
+                padding: 7px 11px;
+                font-size: 10px;
+            }
+
+            .mode-btn {
+                padding: 6px 10px;
+                font-size: 10px;
+            }
+
+            .btn {
+                padding: 8px 11px;
+                font-size: 11px;
+            }
+
+            .title-wrap p {
+                font-size: 11px;
+            }
+
+            .overview-grid {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    'feed'
+                    'focus';
+                gap: 10px;
+            }
+
+            .active-list {
+                max-height: 180px;
+            }
+
+            .timeline {
+                max-height: 350px;
+            }
+
+            .overview-feed .timeline {
+                max-height: 390px;
+            }
+
+            .timeline.timeline-compact {
+                max-height: 250px;
+            }
+
+            .history-box {
+                min-height: 160px;
+                max-height: 210px;
+            }
+
+            .panel-head,
+            .item-top,
+            .agent-console-top,
+            .dispatcher-summary {
+                flex-wrap: wrap;
+                align-items: flex-start;
+            }
+
+            .panel-head .muted,
+            .item-top .muted {
+                width: 100%;
+            }
+
+            .worker-row {
+                min-width: 154px;
+                flex-basis: 154px;
+            }
+
+            .timeline-title {
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+                word-break: break-word;
+            }
+
+            .table-desktop {
+                display: none;
+            }
+
+            .mobile-list {
+                display: grid;
+            }
+
+            .task-modal {
+                padding: 10px;
+            }
+
+            .task-modal-card {
+                max-height: min(92vh, 980px);
+            }
+
+            .task-modal-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .top {
+                grid-template-columns: minmax(0, 1fr) auto;
+                grid-template-areas:
+                    'title title'
+                    'language actions';
+                gap: 10px 8px;
+            }
+
+            .top-language {
+                justify-self: start;
+            }
+
+            .top-status-bar {
+                justify-content: flex-start;
+            }
+
+            .top-actions {
+                gap: 6px;
+                justify-self: end;
+                justify-items: end;
+            }
+
+            .top-actions .btn {
+                width: auto;
+                justify-content: center;
+                text-align: center;
+                flex: 0 0 auto;
+            }
+
+            .top-last-update {
+                font-size: 9px;
+            }
+
+            .top-tag {
+                font-size: 9px;
+            }
+
+            .worker-group-head {
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+
+            .overview-mode-tabs {
+                width: 100%;
+            }
+
+            .mode-btn {
+                flex: 1 1 0;
+                text-align: center;
+            }
+
+            .timeline,
+            .overview-feed .timeline,
+            .timeline.timeline-compact {
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="layout">
+        <section class="top">
+            <div class="title-wrap">
+                <div class="title-copy">
+                    <h1 data-i18n="hero.title">Agent Comm Control Room</h1>
+                    <p data-i18n="hero.subtitle">マルチエージェント進捗をリアルタイム表示</p>
+                </div>
+            </div>
+
+            <div class="lang-switch top-language">
+                <label for="languageSelect" class="lang-select-label" data-i18n="lang.label">Language</label>
+                <select id="languageSelect" class="lang-select" data-i18n-aria-label="lang.select_aria" aria-label="Language">
+                </select>
+            </div>
+
+            <div class="top-actions">
+                <div class="top-status-bar">
+                    <span id="connectionBadge" class="badge">Connecting</span>
+                    <button id="manualRefresh" type="button" class="btn" data-i18n="action.refresh">今すぐ更新</button>
+                </div>
+                <span class="top-last-update"><span data-i18n="top.last_update">last update</span> <span id="generatedAtValue" class="value">-</span></span>
+            </div>
+        </section>
+
+        <section class="tabs">
+            <button type="button" class="tab-btn active" data-tab-button="overview" data-i18n="tabs.overview">Overview</button>
+            <button type="button" class="tab-btn" data-tab-button="terminal" data-i18n="tabs.terminal">Agent Console</button>
+            <button type="button" class="tab-btn" data-tab-button="dispatcher" data-i18n="tabs.dispatcher">Dispatcher</button>
+        </section>
+
+        <section id="tabOverview" class="tab-panel is-active">
+            <section class="overview-mode-tabs">
+                <button type="button" class="mode-btn active" data-overview-mode-button="ops" data-i18n="overview.mode.ops">進行中</button>
+                <button type="button" class="mode-btn" data-overview-mode-button="history" data-i18n="overview.mode.history">履歴</button>
+            </section>
+
+            <section id="overviewModeOps" class="overview-mode-panel is-active">
+                <section class="ops-strip" aria-label="runtime summary" data-i18n-aria-label="overview.runtime_summary_aria">
+                    <article class="ops-metric">
+                        <span class="metric-label" data-i18n="summary.session">Session</span>
+                        <span class="metric-value" id="sessionValue">-</span>
+                        <span class="metric-meta" id="startedAtValue">-</span>
+                    </article>
+
+                    <article class="ops-metric">
+                        <span class="metric-label" data-i18n="summary.tasks_inflight">Tasks inflight</span>
+                        <span class="metric-value" id="taskInflightValue">0</span>
+                        <span class="metric-meta" id="taskCountValue">-</span>
+                    </article>
+
+                    <article class="ops-metric">
+                        <span class="metric-label" data-i18n="summary.reviews_inflight">Reviews inflight</span>
+                        <span class="metric-value" id="reviewInflightValue">0</span>
+                        <span class="metric-meta" id="reviewCountValue">-</span>
+                    </article>
+
+                    <article class="ops-metric">
+                        <span class="metric-label" data-i18n="summary.coordinator">Coordinator</span>
+                        <span class="metric-value" id="coordinatorValue">-</span>
+                        <span class="metric-meta" id="taskAuthorValue">-</span>
+                    </article>
+
+                    <article class="ops-metric">
+                        <span class="metric-label" data-i18n="summary.dispatcher">Dispatcher</span>
+                        <span class="metric-value" id="dispatcherValue">-</span>
+                        <span class="metric-meta" id="reviewCycleValue">-</span>
+                    </article>
+                </section>
+
+                <article class="panel ops-panel overview-workers">
+                    <div class="panel-head">
+                        <h2 data-i18n="workers.title">Agent Matrix</h2>
+                        <span class="muted" id="workerCount">0 agents</span>
+                    </div>
+                    <div id="workers" class="workers"></div>
+                </article>
+
+                <section class="panel ops-panel active-focus">
+                    <div class="panel-head">
+                        <h2 data-i18n="progress.title">Progress Now</h2>
+                        <span class="muted" id="activeMeta">implement 0 / research+review 0</span>
+                    </div>
+                    <div class="active-columns">
+                        <section class="active-column">
+                            <div class="active-column-head">
+                                <strong id="activeImplementLabel">実装中・保留</strong>
+                                <span class="muted" id="activeImplementCount">0</span>
+                            </div>
+                            <div id="activeImplementList" class="active-list"></div>
+                        </section>
+
+                        <section class="active-column">
+                            <div class="active-column-head">
+                                <strong id="activeResearchLabel">調査・レビュー進行</strong>
+                                <span class="muted" id="activeResearchCount">0</span>
+                            </div>
+                            <div id="activeResearchList" class="active-list"></div>
+                        </section>
+                    </div>
+                </section>
+
+                <section class="overview-grid">
+                    <article class="panel ops-panel overview-feed">
+                        <div class="panel-head">
+                            <h2 data-i18n="timeline.title">Live Feed / イベントタイムライン</h2>
+                            <span id="eventCount" class="muted">0 items</span>
+                        </div>
+                        <div id="timeline" class="timeline"></div>
+                    </article>
+
+                    <article class="panel ops-panel overview-focus">
+                        <div class="panel-head">
+                            <h2 data-i18n="command.focus_title">Command Focus</h2>
+                            <span class="muted" data-i18n="command.focus_subtitle">優先指示</span>
+                        </div>
+
+                        <section class="focus-block">
+                            <div class="panel-head">
+                                <h2 data-i18n="command.current_title">現在の指示</h2>
+                                <span class="muted" id="commandMeta">-</span>
+                            </div>
+                            <div class="chips" id="commandChips"></div>
+                            <pre class="command-box" id="commandText">(command がありません)</pre>
+                        </section>
+                    </article>
+                </section>
+            </section>
+
+            <section id="overviewModeHistory" class="overview-mode-panel">
+                <section class="detail-grid">
+                    <article class="card panel">
+                        <div class="panel-head">
+                            <h2 data-i18n="history.title">タスク詳細</h2>
+                            <span class="muted" id="taskListMeta">-</span>
+                        </div>
+                        <div class="table-wrap table-desktop">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="history.table.task">Task</th>
+                                        <th data-i18n="history.table.assignee">担当</th>
+                                        <th data-i18n="history.table.status">Status</th>
+                                        <th data-i18n="history.table.result">Result</th>
+                                        <th data-i18n="history.table.updated">Updated</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="taskTableBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="taskMobileList" class="mobile-list"></div>
+                    </article>
+                </section>
+            </section>
+
+            <div id="missingRootWarning" class="warning" hidden data-i18n="warning.missing_root">
+                `.runtime` が見つからないため、表示は空データです。agent-comm の runtime を確認してください。
+            </div>
+        </section>
+
+        <section id="tabTerminal" class="tab-panel">
+            <section class="card panel">
+                <div class="agent-console-head">
+                    <h2 data-i18n="terminal.title">Agent Terminal Live</h2>
+                    <span class="muted" id="tmuxMeta">-</span>
+                </div>
+                <div id="tmuxConsoleGrid" class="agent-console-grid"></div>
+                <div id="tmuxError" class="warning" hidden></div>
+            </section>
+        </section>
+
+        <section id="tabDispatcher" class="tab-panel">
+            <section class="card panel">
+                <div class="agent-console-head">
+                    <h2 data-i18n="dispatcher_tab.title">Dispatcher</h2>
+                    <span class="muted" id="dispatcherMeta">-</span>
+                </div>
+                <div class="dispatcher-shell">
+                    <div class="dispatcher-summary">
+                        <div class="dispatcher-summary-main">
+                            <strong id="dispatcherLabel">Dispatcher</strong>
+                            <span id="dispatcherTarget" class="muted">-</span>
+                        </div>
+                        <div id="dispatcherChips" class="chips"></div>
+                    </div>
+                    <pre id="dispatcherHistory" class="history-box">(履歴なし)</pre>
+                    <div class="send-row">
+                        <span id="dispatcherCaptured" class="send-feedback">-</span>
+                    </div>
+                </div>
+                <div id="dispatcherError" class="warning" hidden></div>
+            </section>
+        </section>
+
+        <div id="taskDetailModal" class="task-modal" hidden>
+            <div class="task-modal-backdrop" data-task-modal-close="1"></div>
+            <section class="task-modal-card" role="dialog" aria-modal="true" aria-labelledby="taskDetailTitle">
+                <header class="task-modal-head">
+                    <div>
+                        <h3 id="taskDetailTitle" data-i18n="modal.title">タスク詳細</h3>
+                    </div>
+                    <button type="button" class="task-modal-close" data-task-modal-close="1" data-i18n="modal.close">閉じる</button>
+                </header>
+
+                <div id="taskDetailChips" class="chips"></div>
+
+                <section class="task-modal-grid">
+                    <article class="task-modal-field">
+                        <span class="task-modal-label" data-i18n="modal.task_id">Task ID</span>
+                        <span id="taskDetailId" class="task-modal-value">-</span>
+                    </article>
+                    <article class="task-modal-field">
+                        <span class="task-modal-label" data-i18n="modal.assignee_persona">担当 / Persona</span>
+                        <span id="taskDetailAssignee" class="task-modal-value">-</span>
+                    </article>
+                    <article class="task-modal-field">
+                        <span class="task-modal-label" data-i18n="modal.type">Type</span>
+                        <span id="taskDetailType" class="task-modal-value">-</span>
+                    </article>
+                    <article class="task-modal-field">
+                        <span class="task-modal-label" data-i18n="modal.command_id">Command ID</span>
+                        <span id="taskDetailCommandId" class="task-modal-value">-</span>
+                    </article>
+                    <article class="task-modal-field">
+                        <span class="task-modal-label" data-i18n="modal.created">作成</span>
+                        <span id="taskDetailCreatedAt" class="task-modal-value">-</span>
+                    </article>
+                    <article class="task-modal-field">
+                        <span class="task-modal-label" data-i18n="modal.updated_completed">更新 / 完了</span>
+                        <span id="taskDetailUpdatedAt" class="task-modal-value">-</span>
+                    </article>
+                </section>
+
+                <section class="task-modal-section">
+                    <h4 data-i18n="modal.section.title">タイトル</h4>
+                    <pre id="taskDetailTitleText" class="task-modal-pre"></pre>
+                </section>
+
+                <section class="task-modal-section">
+                    <h4 data-i18n="modal.section.description">説明</h4>
+                    <pre id="taskDetailDescription" class="task-modal-pre"></pre>
+                </section>
+
+                <section class="task-modal-section">
+                    <h4>depends_on</h4>
+                    <ul id="taskDetailDependsOn" class="task-modal-list"></ul>
+                </section>
+
+                <section class="task-modal-section">
+                    <h4>write_files</h4>
+                    <ul id="taskDetailWriteFiles" class="task-modal-list"></ul>
+                </section>
+
+                <section class="task-modal-section">
+                    <h4>read_files</h4>
+                    <ul id="taskDetailReadFiles" class="task-modal-list"></ul>
+                </section>
+
+                <section class="task-modal-section">
+                    <h4 data-i18n="modal.section.notes">補足</h4>
+                    <pre id="taskDetailNotes" class="task-modal-pre"></pre>
+                </section>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const initialSnapshot = { generated_at: '', last_modified_at: '', root_exists: true, agent_comm_root: '', runtime: { session: '', started_at: '', coordinator: 'unknown', task_author: 'unknown', dispatcher: 'unknown', workers: [], review_cycle: { cycle_id: '', active: false, target_signature: '', last_approved_signature: '' } }, tasks: { counts: { pending: 0, inflight: 0, done: 0, blocked: 0 }, items: [] }, reviews: { counts: { pending: 0, inflight: 0, done: 0 }, items: [] }, events: [], command: { id: '', status: '', priority: '', assigned_to: '', created_at: '', updated_at: '', command: '' }, reports: [], checksum: '' };
+        const i18nCatalogEndpoint = '/api/i18n/catalog';
+        const snapshotEndpoint = '/api/snapshot';
+        const tmuxSnapshotEndpoint = '/api/tmux/snapshot';
+        const tmuxSendEndpoint = '/api/tmux/send';
+        const streamEndpoint = '/api/stream';
+        const fallbackLanguageCode = 'en';
+        const languageStorageKey = 'agent_comm_dashboard_lang';
+
+        const state = {
+            snapshot: initialSnapshot,
+            eventSource: null,
+            reconnectTimer: null,
+            fallbackTimer: null,
+            tmuxTimer: null,
+            tmuxDrafts: {},
+            tmuxCards: {},
+            overviewMode: 'ops',
+            activeTab: 'overview',
+            workerStateMap: {},
+            timelineSignatures: new Set(),
+            timelineInitialized: false,
+            workItemSignatures: {},
+            workItemInitialized: {},
+            language: fallbackLanguageCode,
+            languageCatalog: [],
+            defaultLanguage: fallbackLanguageCode,
+            messages: {},
+            fallbackMessages: {},
+        };
+
+        const connectionBadge = document.getElementById('connectionBadge');
+        const languageSelect = document.getElementById('languageSelect');
+        const missingRootWarning = document.getElementById('missingRootWarning');
+        const tabButtons = document.querySelectorAll('[data-tab-button]');
+        const tabOverview = document.getElementById('tabOverview');
+        const tabTerminal = document.getElementById('tabTerminal');
+        const tabDispatcher = document.getElementById('tabDispatcher');
+        const overviewModeButtons = document.querySelectorAll('[data-overview-mode-button]');
+        const overviewModeOps = document.getElementById('overviewModeOps');
+        const overviewModeHistory = document.getElementById('overviewModeHistory');
+        const tmuxConsoleGrid = document.getElementById('tmuxConsoleGrid');
+        const tmuxMeta = document.getElementById('tmuxMeta');
+        const tmuxError = document.getElementById('tmuxError');
+        const dispatcherMeta = document.getElementById('dispatcherMeta');
+        const dispatcherLabel = document.getElementById('dispatcherLabel');
+        const dispatcherTarget = document.getElementById('dispatcherTarget');
+        const dispatcherChips = document.getElementById('dispatcherChips');
+        const dispatcherHistory = document.getElementById('dispatcherHistory');
+        const dispatcherCaptured = document.getElementById('dispatcherCaptured');
+        const dispatcherError = document.getElementById('dispatcherError');
+        const taskDetailModal = document.getElementById('taskDetailModal');
+        const taskDetailChips = document.getElementById('taskDetailChips');
+        const taskDetailId = document.getElementById('taskDetailId');
+        const taskDetailAssignee = document.getElementById('taskDetailAssignee');
+        const taskDetailType = document.getElementById('taskDetailType');
+        const taskDetailCommandId = document.getElementById('taskDetailCommandId');
+        const taskDetailCreatedAt = document.getElementById('taskDetailCreatedAt');
+        const taskDetailUpdatedAt = document.getElementById('taskDetailUpdatedAt');
+        const taskDetailTitleText = document.getElementById('taskDetailTitleText');
+        const taskDetailDescription = document.getElementById('taskDetailDescription');
+        const taskDetailDependsOn = document.getElementById('taskDetailDependsOn');
+        const taskDetailWriteFiles = document.getElementById('taskDetailWriteFiles');
+        const taskDetailReadFiles = document.getElementById('taskDetailReadFiles');
+        const taskDetailNotes = document.getElementById('taskDetailNotes');
+
+        function normalizeLanguage(value) {
+            return String(value || '').trim().toLowerCase();
+        }
+
+        function interpolate(template, params = {}) {
+            return String(template).replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key) => {
+                if (Object.prototype.hasOwnProperty.call(params, key)) {
+                    return String(params[key]);
+                }
+                return match;
+            });
+        }
+
+        function t(key, params = {}, _unusedFallback = '') {
+            const template = state.messages[key] ?? state.fallbackMessages[key] ?? '';
+            return interpolate(template, params);
+        }
+
+        function normalizeLanguageInfo(info) {
+            const code = normalizeLanguage(info?.code);
+            if (code === '') {
+                return null;
+            }
+
+            const label = toText(info?.label, code);
+            const nativeLabel = toText(info?.native_label, label);
+            const locale = toText(info?.locale, code);
+            return {
+                code,
+                label,
+                native_label: nativeLabel,
+                locale,
+            };
+        }
+
+        function currentLanguageInfo() {
+            return state.languageCatalog.find((item) => item.code === state.language) || null;
+        }
+
+        function defaultLanguageCode() {
+            return resolveLanguageCandidate(state.defaultLanguage) ||
+                normalizeLanguage(state.defaultLanguage) ||
+                resolveLanguageCandidate(fallbackLanguageCode) ||
+                state.languageCatalog[0]?.code ||
+                fallbackLanguageCode;
+        }
+
+        function resolveLanguageCandidate(value, catalog = state.languageCatalog) {
+            const normalized = normalizeLanguage(value);
+            if (normalized === '') {
+                return '';
+            }
+
+            const exactMatch = catalog.find((item) => item.code === normalized);
+            if (exactMatch) {
+                return exactMatch.code;
+            }
+
+            const baseCode = normalized.split(/[-_]/)[0];
+            const baseMatch = catalog.find((item) => item.code === baseCode);
+            if (baseMatch) {
+                return baseMatch.code;
+            }
+
+            const prefixMatch = catalog.find((item) =>
+                normalized.startsWith(`${item.code}-`) || normalized.startsWith(`${item.code}_`)
+            );
+            if (prefixMatch) {
+                return prefixMatch.code;
+            }
+
+            return '';
+        }
+
+        function buildLanguageOptionLabel(info) {
+            return toText(info.label, info.code);
+        }
+
+        function upsertLanguageCatalogEntry(info) {
+            const normalized = normalizeLanguageInfo(info);
+            if (!normalized) {
+                return;
+            }
+
+            const existingIndex = state.languageCatalog.findIndex((item) => item.code === normalized.code);
+            if (existingIndex === -1) {
+                state.languageCatalog = [...state.languageCatalog, normalized].sort((left, right) => left.code.localeCompare(right.code));
+                return;
+            }
+
+            state.languageCatalog[existingIndex] = normalized;
+        }
+
+        function extractTranslationMessages(payload) {
+            if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+                return {};
+            }
+            return payload;
+        }
+
+        async function loadLanguageCatalog() {
+            try {
+                const response = await fetch(i18nCatalogEndpoint, {
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                    cache: 'no-store',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`i18n catalog fetch failed: ${response.status}`);
+                }
+
+                const payload = await response.json();
+                const items = Array.isArray(payload.items) ? payload.items : [];
+                const normalizedItems = items
+                    .map(normalizeLanguageInfo)
+                    .filter((item) => item !== null);
+                state.languageCatalog = normalizedItems;
+                state.defaultLanguage = resolveLanguageCandidate(payload.default_language, normalizedItems) ||
+                    resolveLanguageCandidate(fallbackLanguageCode, normalizedItems) ||
+                    normalizedItems[0]?.code ||
+                    fallbackLanguageCode;
+            } catch (_error) {
+                state.languageCatalog = [];
+                state.defaultLanguage = fallbackLanguageCode;
+            }
+        }
+
+        async function loadDictionary(language) {
+            const resolvedLanguage = normalizeLanguage(language);
+            if (resolvedLanguage === '') {
+                return null;
+            }
+
+            try {
+                const response = await fetch(`/i18n/${resolvedLanguage}.json`, {
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                    cache: 'no-store',
+                });
+
+                if (!response.ok) {
+                    return null;
+                }
+
+                const payload = await response.json();
+                upsertLanguageCatalogEntry(payload?.meta || {
+                    code: resolvedLanguage,
+                    label: resolvedLanguage,
+                    native_label: resolvedLanguage,
+                    locale: resolvedLanguage,
+                });
+                return payload;
+            } catch (_error) {
+                return null;
+            }
+        }
+
+        function resolvePreferredLanguage() {
+            const params = new URLSearchParams(window.location.search);
+            const fromQuery = resolveLanguageCandidate(params.get('lang'));
+            if (fromQuery !== '' && params.get('lang')) {
+                return fromQuery;
+            }
+
+            const storedValue = window.localStorage.getItem(languageStorageKey) || '';
+            const fromStorage = resolveLanguageCandidate(storedValue);
+            if (fromStorage !== '' && storedValue !== '') {
+                return fromStorage;
+            }
+
+            const fromConfig = resolveLanguageCandidate(state.defaultLanguage) || normalizeLanguage(state.defaultLanguage);
+            if (fromConfig !== '') {
+                return fromConfig;
+            }
+
+            const browserLanguages = Array.isArray(window.navigator.languages) ?
+                window.navigator.languages :
+                [window.navigator.language || ''];
+
+            for (const browserLanguage of browserLanguages) {
+                const matched = resolveLanguageCandidate(browserLanguage);
+                if (matched !== '') {
+                    return matched;
+                }
+            }
+
+            return defaultLanguageCode();
+        }
+
+        function updateLanguageSelect() {
+            if (!(languageSelect instanceof HTMLSelectElement)) {
+                return;
+            }
+
+            const currentValue = languageSelect.value;
+            languageSelect.innerHTML = '';
+
+            for (const info of state.languageCatalog) {
+                const option = document.createElement('option');
+                option.value = info.code;
+                option.textContent = buildLanguageOptionLabel(info);
+                languageSelect.appendChild(option);
+            }
+
+            const resolvedValue = resolveLanguageCandidate(state.language) ||
+                resolveLanguageCandidate(currentValue) ||
+                defaultLanguageCode();
+            languageSelect.value = resolvedValue;
+        }
+
+        function applyStaticTranslations() {
+            document.documentElement.lang = state.language;
+            document.title = t('page.title');
+
+            for (const node of document.querySelectorAll('[data-i18n]')) {
+                node.textContent = t(node.dataset.i18n || '');
+            }
+
+            for (const node of document.querySelectorAll('[data-i18n-placeholder]')) {
+                node.setAttribute('placeholder', t(node.dataset.i18nPlaceholder || ''));
+            }
+
+            for (const node of document.querySelectorAll('[data-i18n-aria-label]')) {
+                node.setAttribute('aria-label', t(node.dataset.i18nAriaLabel || ''));
+            }
+
+            updateLanguageSelect();
+        }
+
+        async function setLanguage(language, { persist = true } = {}) {
+            const fallbackPayload = await loadDictionary(fallbackLanguageCode);
+            state.fallbackMessages = extractTranslationMessages(fallbackPayload);
+
+            const requestedLanguage = resolveLanguageCandidate(language) || normalizeLanguage(language) || defaultLanguageCode();
+            let resolvedLanguage = resolveLanguageCandidate(requestedLanguage) || requestedLanguage || defaultLanguageCode();
+            let primaryPayload = resolvedLanguage === fallbackLanguageCode ? fallbackPayload : await loadDictionary(resolvedLanguage);
+
+            if (!primaryPayload && fallbackPayload) {
+                resolvedLanguage = resolveLanguageCandidate(fallbackLanguageCode) || fallbackLanguageCode;
+                primaryPayload = fallbackPayload;
+            }
+
+            state.messages = extractTranslationMessages(primaryPayload);
+            state.language = resolveLanguageCandidate(primaryPayload?.meta?.code || resolvedLanguage) ||
+                normalizeLanguage(primaryPayload?.meta?.code || resolvedLanguage) ||
+                defaultLanguageCode();
+
+            if (persist) {
+                window.localStorage.setItem(languageStorageKey, state.language);
+            }
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('lang', state.language);
+            window.history.replaceState({}, '', url);
+
+            applyStaticTranslations();
+        }
+
+        function toText(value, fallback = '-') {
+            if (value === null || value === undefined) {
+                return fallback;
+            }
+
+            const text = String(value).trim();
+            return text === '' ? fallback : text;
+        }
+
+        function formatDateTime(value) {
+            if (!value) {
+                return '-';
+            }
+
+            const date = new Date(value);
+
+            if (Number.isNaN(date.getTime())) {
+                return String(value);
+            }
+
+            const locale = currentLanguageInfo()?.locale || state.language || defaultLanguageCode();
+            return date.toLocaleString(locale, {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
+        }
+
+        function toEpoch(value) {
+            if (!value) {
+                return Number.NEGATIVE_INFINITY;
+            }
+
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? Number.NEGATIVE_INFINITY : date.getTime();
+        }
+
+        function normalizeToken(value, fallback = 'unknown') {
+            const text = toText(value, fallback).toLowerCase();
+            const normalized = text.replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+            return normalized === '' ? fallback : normalized;
+        }
+
+        function chipClass(value) {
+            const normalized = normalizeToken(value, 'unknown');
+            return `chip ${normalized}`;
+        }
+
+        function chipLabel(value) {
+            const normalized = normalizeToken(value, 'unknown');
+            return t(`chip.${normalized}`, {}, toText(value, 'unknown'));
+        }
+
+        function createChip(value) {
+            const span = document.createElement('span');
+            span.className = chipClass(value);
+            span.textContent = chipLabel(value);
+            return span;
+        }
+
+        function setConnectionState(statusLabel) {
+            const normalized = toText(statusLabel, 'error').toLowerCase();
+            connectionBadge.classList.remove('live', 'retrying', 'error');
+
+            if (normalized === 'live') {
+                connectionBadge.classList.add('live');
+            }
+
+            if (normalized === 'retrying' || normalized === 'connecting') {
+                connectionBadge.classList.add('retrying');
+            }
+
+            if (normalized === 'error') {
+                connectionBadge.classList.add('error');
+            }
+
+            connectionBadge.textContent = normalized === 'live' ?
+                'LIVE' :
+                t(`connection.${normalized}`, {}, normalized);
+        }
+
+        function setText(id, value, fallback = '-') {
+            const node = document.getElementById(id);
+
+            if (!node) {
+                return;
+            }
+
+            node.textContent = toText(value, fallback);
+        }
+
+        function toTextPreserveLines(value, fallback = '-') {
+            if (value === null || value === undefined) {
+                return fallback;
+            }
+
+            const text = String(value)
+                .replace(/\\r\\n/g, '\n')
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\n')
+                .replace(/\r\n/g, '\n')
+                .replace(/\r/g, '\n');
+            return text.trim() === '' ? fallback : text;
+        }
+
+        function toStringList(value) {
+            if (!Array.isArray(value)) {
+                return [];
+            }
+
+            return value
+                .filter((entry) => typeof entry === 'string')
+                .map((entry) => entry.trim())
+                .filter((entry) => entry !== '');
+        }
+
+        function renderTaskDetailList(node, values, emptyLabel) {
+            if (!(node instanceof HTMLElement)) {
+                return;
+            }
+
+            node.innerHTML = '';
+            if (values.length === 0) {
+                const li = document.createElement('li');
+                li.className = 'muted';
+                li.textContent = emptyLabel;
+                node.appendChild(li);
+                return;
+            }
+
+            for (const value of values) {
+                const li = document.createElement('li');
+                li.textContent = value;
+                node.appendChild(li);
+            }
+        }
+
+        function openTaskDetailModal(item) {
+            if (
+                !(taskDetailModal instanceof HTMLElement) ||
+                !(taskDetailChips instanceof HTMLElement) ||
+                !(taskDetailId instanceof HTMLElement) ||
+                !(taskDetailAssignee instanceof HTMLElement) ||
+                !(taskDetailType instanceof HTMLElement) ||
+                !(taskDetailCommandId instanceof HTMLElement) ||
+                !(taskDetailCreatedAt instanceof HTMLElement) ||
+                !(taskDetailUpdatedAt instanceof HTMLElement) ||
+                !(taskDetailTitleText instanceof HTMLElement) ||
+                !(taskDetailDescription instanceof HTMLElement) ||
+                !(taskDetailDependsOn instanceof HTMLElement) ||
+                !(taskDetailWriteFiles instanceof HTMLElement) ||
+                !(taskDetailReadFiles instanceof HTMLElement) ||
+                !(taskDetailNotes instanceof HTMLElement)
+            ) {
+                return;
+            }
+
+            taskDetailChips.innerHTML = '';
+            taskDetailChips.appendChild(createChip(item.status));
+            taskDetailChips.appendChild(createChip(item.result || 'unknown'));
+            if (item.assigned_to) {
+                taskDetailChips.appendChild(createChip(item.assigned_to));
+            }
+
+            taskDetailId.textContent = toText(item.id, '-');
+            taskDetailAssignee.textContent = `${toText(item.assigned_to, '-')} / ${toText(item.persona, '-')}`;
+            taskDetailType.textContent = toText(item.type, '-');
+            taskDetailCommandId.textContent = toText(item.command_id, '-');
+            taskDetailCreatedAt.textContent = formatDateTime(item.created_at);
+            taskDetailUpdatedAt.textContent = `${formatDateTime(item.updated_at || item.completed_at || item.created_at)} / ${formatDateTime(item.completed_at)}`;
+            taskDetailTitleText.textContent = toTextPreserveLines(item.title, t('task.title.empty', {}, '(titleなし)'));
+            taskDetailDescription.textContent = toTextPreserveLines(item.description, t('task.description.empty', {}, '(descriptionなし)'));
+
+            renderTaskDetailList(taskDetailDependsOn, toStringList(item.depends_on), t('task.depends_on.empty', {}, '(depends_on なし)'));
+            renderTaskDetailList(taskDetailWriteFiles, toStringList(item.write_files), t('task.write_files.empty', {}, '(write_files なし)'));
+            renderTaskDetailList(taskDetailReadFiles, toStringList(item.read_files), t('task.read_files.empty', {}, '(read_files なし)'));
+
+            const notes = [
+                `depends_on_count: ${item.depends_on_count ?? 0}`,
+                `result_artifact_path: ${toText(item.result_artifact_path, '-')}`,
+                `rework_note_path: ${toText(item.rework_note_path, '-')}`,
+                `blocked_reason: ${toText(item.blocked_reason, '-')}`,
+            ];
+            taskDetailNotes.textContent = notes.join('\n');
+
+            taskDetailModal.hidden = false;
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeTaskDetailModal() {
+            if (!(taskDetailModal instanceof HTMLElement)) {
+                return;
+            }
+
+            taskDetailModal.hidden = true;
+            document.body.style.overflow = '';
+        }
+
+        function bindTaskDetailOpen(targetNode, item) {
+            if (!(targetNode instanceof HTMLElement)) {
+                return;
+            }
+
+            const open = () => openTaskDetailModal(item);
+            targetNode.addEventListener('click', open);
+            targetNode.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') {
+                    return;
+                }
+
+                event.preventDefault();
+                open();
+            });
+        }
+
+        function preserveScroll(node, renderCallback, options = {}) {
+            if (!(node instanceof HTMLElement)) {
+                renderCallback();
+                return;
+            }
+
+            const previousScrollTop = node.scrollTop;
+            const previousScrollHeight = node.scrollHeight;
+            const stickToBottom = options.stickToBottom !== false;
+            const threshold = Number.isFinite(options.stickToBottomThreshold) ? options.stickToBottomThreshold : 18;
+            const nearBottom = stickToBottom &&
+                (previousScrollHeight - previousScrollTop - node.clientHeight) <= threshold;
+
+            renderCallback();
+
+            if (nearBottom) {
+                node.scrollTop = node.scrollHeight;
+                return;
+            }
+
+            if (options.adjustForGrowth === true && previousScrollTop > 0) {
+                const heightDelta = node.scrollHeight - previousScrollHeight;
+                node.scrollTop = Math.max(0, previousScrollTop + Math.max(0, heightDelta));
+                return;
+            }
+
+            node.scrollTop = previousScrollTop;
+        }
+
+        function getTmuxDraft(agentId) {
+            const draft = state.tmuxDrafts[agentId];
+            return typeof draft === 'string' ? draft : '';
+        }
+
+        function activateTab(tabName) {
+            const normalizedTab = ['terminal', 'dispatcher'].includes(tabName) ? tabName : 'overview';
+            state.activeTab = normalizedTab;
+
+            tabOverview.classList.toggle('is-active', normalizedTab === 'overview');
+            tabTerminal.classList.toggle('is-active', normalizedTab === 'terminal');
+            tabDispatcher.classList.toggle('is-active', normalizedTab === 'dispatcher');
+
+            for (const button of tabButtons) {
+                const isActive = (button.dataset.tabButton || 'overview') === normalizedTab;
+                button.classList.toggle('active', isActive);
+            }
+
+            if (normalizedTab === 'terminal' || normalizedTab === 'dispatcher') {
+                refreshTmuxSnapshot();
+            }
+        }
+
+        function activateOverviewMode(modeName) {
+            const normalizedMode = modeName === 'history' ? 'history' : 'ops';
+            state.overviewMode = normalizedMode;
+
+            if (overviewModeOps instanceof HTMLElement) {
+                overviewModeOps.classList.toggle('is-active', normalizedMode === 'ops');
+            }
+
+            if (overviewModeHistory instanceof HTMLElement) {
+                overviewModeHistory.classList.toggle('is-active', normalizedMode === 'history');
+            }
+
+            for (const button of overviewModeButtons) {
+                const buttonMode = button.dataset.overviewModeButton || 'ops';
+                button.classList.toggle('active', buttonMode === normalizedMode);
+            }
+        }
+
+        function createTmuxCard(agentId) {
+            const card = document.createElement('article');
+            card.className = 'card agent-console-card';
+
+            const top = document.createElement('div');
+            top.className = 'agent-console-top';
+
+            const title = document.createElement('div');
+            title.className = 'agent-console-title';
+            const strong = document.createElement('strong');
+            title.appendChild(strong);
+            const target = document.createElement('span');
+            target.className = 'muted';
+            title.appendChild(target);
+
+            const chips = document.createElement('div');
+            chips.className = 'chips';
+
+            top.appendChild(title);
+            top.appendChild(chips);
+
+            const history = document.createElement('pre');
+            history.className = 'history-box';
+
+            const sendBox = document.createElement('div');
+            sendBox.className = 'send-box';
+
+            const input = document.createElement('textarea');
+            input.className = 'send-input';
+            input.placeholder = t('tmux.input_placeholder', {}, 'このエージェントへ送る指示を入力');
+            input.dataset.agentInput = agentId;
+            input.value = getTmuxDraft(agentId);
+            input.addEventListener('input', () => {
+                state.tmuxDrafts[agentId] = input.value;
+            });
+
+            const row = document.createElement('div');
+            row.className = 'send-row';
+
+            const feedback = document.createElement('span');
+            feedback.className = 'send-feedback';
+
+            const sendButton = document.createElement('button');
+            sendButton.type = 'button';
+            sendButton.className = 'small-btn';
+            sendButton.textContent = t('tmux.send', {}, '送信');
+            sendButton.addEventListener('click', async () => {
+                await sendTmuxMessage(agentId, input, feedback, sendButton);
+            });
+
+            row.appendChild(feedback);
+            row.appendChild(sendButton);
+            sendBox.appendChild(input);
+            sendBox.appendChild(row);
+
+            card.appendChild(top);
+            card.appendChild(history);
+            card.appendChild(sendBox);
+
+            return {
+                card,
+                strong,
+                target,
+                chips,
+                history,
+                input,
+                feedback,
+                sendButton,
+            };
+        }
+
+        function syncHistoryScroll(historyNode, nextText) {
+            if (historyNode.textContent !== nextText) {
+                historyNode.textContent = nextText;
+            }
+
+            historyNode.scrollTop = historyNode.scrollHeight;
+        }
+
+        function resolveTmuxHistoryText(agent) {
+            const historyCode = normalizeToken(agent?.history_code || '', '').replace(/_/g, '-');
+            if (historyCode !== '') {
+                return t(`tmux.history.${historyCode}`);
+            }
+            return toText(agent?.history, '');
+        }
+
+        function detectTmuxSendErrorCode(payload) {
+            return normalizeToken(payload?.error_code || '', '').replace(/_/g, '-');
+        }
+
+        function translateTmuxSendError(payload) {
+            const errorCode = detectTmuxSendErrorCode(payload);
+            if (errorCode !== '') {
+                return t(`tmux.error.${errorCode}`) || t('tmux.error.send_failed');
+            }
+            return t('tmux.error.send_failed');
+        }
+
+        function renderAgentStateChips(node, agent) {
+            if (!(node instanceof HTMLElement)) {
+                return;
+            }
+
+            const stateToken = normalizeToken(agent?.state, 'unknown');
+            const runningToken = normalizeToken(agent?.running ? 'live' : 'offline', 'unknown');
+
+            node.innerHTML = '';
+            node.appendChild(createChip(agent?.state));
+            if (runningToken !== stateToken) {
+                node.appendChild(createChip(agent?.running ? 'live' : 'offline'));
+            }
+        }
+
+        async function sendTmuxMessage(agentId, inputNode, feedbackNode, buttonNode) {
+            const rawMessage = inputNode.value;
+            const message = rawMessage.trim();
+
+            if (message === '') {
+                feedbackNode.className = 'send-feedback error';
+                feedbackNode.textContent = t('tmux.feedback.empty_message');
+                return;
+            }
+
+            buttonNode.disabled = true;
+            feedbackNode.className = 'send-feedback';
+            feedbackNode.textContent = t('tmux.feedback.sending');
+
+            try {
+                const response = await fetch(tmuxSendEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        agent_id: agentId,
+                        message,
+                    }),
+                    cache: 'no-store',
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || payload.ok !== true) {
+                    const localizedError = new Error(translateTmuxSendError(payload));
+                    localizedError.isLocalized = true;
+                    throw localizedError;
+                }
+
+                inputNode.value = '';
+                state.tmuxDrafts[agentId] = '';
+                feedbackNode.className = 'send-feedback ok';
+                const sendMode = toText(payload.mode, 'direct');
+                const modeLabel = sendMode === 'queued' ?
+                    t('tmux.feedback.queued') :
+                    t('tmux.feedback.sent');
+                feedbackNode.textContent = t('tmux.feedback.sent_with_time', {
+                    mode: modeLabel,
+                    time: formatDateTime(payload.sent_at),
+                });
+                await refreshTmuxSnapshot();
+            } catch (error) {
+                feedbackNode.className = 'send-feedback error';
+                feedbackNode.textContent = error?.isLocalized === true ?
+                    toText(error?.message, t('tmux.error.send_failed')) :
+                    t('tmux.error.send_failed');
+            } finally {
+                buttonNode.disabled = false;
+            }
+        }
+
+        function renderDispatcherAgent(agent, session, generatedAt) {
+            if (
+                !(dispatcherMeta instanceof HTMLElement) ||
+                !(dispatcherLabel instanceof HTMLElement) ||
+                !(dispatcherTarget instanceof HTMLElement) ||
+                !(dispatcherChips instanceof HTMLElement) ||
+                !(dispatcherHistory instanceof HTMLElement) ||
+                !(dispatcherCaptured instanceof HTMLElement) ||
+                !(dispatcherError instanceof HTMLElement)
+            ) {
+                return;
+            }
+
+            dispatcherError.hidden = true;
+            dispatcherError.textContent = '';
+            dispatcherMeta.textContent = `${session} / ${generatedAt}`;
+
+            dispatcherChips.innerHTML = '';
+            if (!agent) {
+                dispatcherLabel.textContent = t('dispatcher_tab.label', {}, 'Dispatcher');
+                dispatcherTarget.textContent = '-';
+                syncHistoryScroll(dispatcherHistory, t('dispatcher_tab.empty', {}, '(履歴なし)'));
+                dispatcherCaptured.textContent = '-';
+                dispatcherChips.appendChild(createChip('unknown'));
+                return;
+            }
+
+            dispatcherLabel.textContent = toText(agent.label, t('dispatcher_tab.label', {}, 'Dispatcher'));
+            dispatcherTarget.textContent = toText(agent.tmux_target, '-');
+            renderAgentStateChips(dispatcherChips, agent);
+
+            const translatedHistory = resolveTmuxHistoryText(agent);
+            const historyText = toText(translatedHistory, t('dispatcher_tab.empty'));
+            syncHistoryScroll(dispatcherHistory, historyText);
+            dispatcherCaptured.textContent = t('tmux.captured', {
+                time: formatDateTime(agent.captured_at),
+            }, `captured: ${formatDateTime(agent.captured_at)}`);
+        }
+
+        function renderTmuxSnapshot(payload) {
+            if (!tmuxConsoleGrid) {
+                return;
+            }
+
+            const activeElement = document.activeElement;
+            const focusedAgentId = activeElement instanceof HTMLTextAreaElement ?
+                toText(activeElement.dataset.agentInput, '') :
+                '';
+            const focusedSelectionStart = activeElement instanceof HTMLTextAreaElement ?
+                activeElement.selectionStart :
+                null;
+            const focusedSelectionEnd = activeElement instanceof HTMLTextAreaElement ?
+                activeElement.selectionEnd :
+                null;
+
+            const session = toText(payload.session, '-');
+            const generatedAt = formatDateTime(payload.generated_at);
+            if (tmuxError instanceof HTMLElement) {
+                tmuxError.hidden = true;
+                tmuxError.textContent = '';
+            }
+            if (tmuxMeta instanceof HTMLElement) {
+                tmuxMeta.textContent = `${session} / ${generatedAt}`;
+            }
+
+            const agents = Array.isArray(payload.agents) ? payload.agents : [];
+            const dispatcherAgent = agents.find((agent) => toText(agent?.id, '') === 'dispatcher') || null;
+            renderDispatcherAgent(dispatcherAgent, session, generatedAt);
+
+            if (agents.length === 0) {
+                for (const cardId of Object.keys(state.tmuxCards)) {
+                    const cardElements = state.tmuxCards[cardId];
+                    if (cardElements?.card instanceof HTMLElement) {
+                        cardElements.card.remove();
+                    }
+
+                    delete state.tmuxCards[cardId];
+                }
+                return;
+            }
+
+            if (state.tmuxCards.dispatcher?.card instanceof HTMLElement) {
+                state.tmuxCards.dispatcher.card.remove();
+                delete state.tmuxCards.dispatcher;
+            }
+
+            const consoleAgents = agents.filter((agent) => toText(agent?.id, '') !== 'dispatcher');
+            const seenIds = new Set();
+            for (const agent of consoleAgents) {
+                const agentId = toText(agent.id, '');
+                if (agentId === '') {
+                    continue;
+                }
+
+                seenIds.add(agentId);
+
+                if (!state.tmuxCards[agentId]) {
+                    state.tmuxCards[agentId] = createTmuxCard(agentId);
+                    tmuxConsoleGrid.appendChild(state.tmuxCards[agentId].card);
+                }
+
+                const cardElements = state.tmuxCards[agentId];
+                cardElements.strong.textContent = toText(agent.label, agentId);
+                cardElements.target.textContent = toText(agent.tmux_target, '-');
+                cardElements.input.placeholder = t('tmux.input_placeholder', {}, 'このエージェントへ送る指示を入力');
+                cardElements.sendButton.textContent = t('tmux.send', {}, '送信');
+                renderAgentStateChips(cardElements.chips, agent);
+
+                const translatedHistory = resolveTmuxHistoryText(agent);
+                const historyText = toText(translatedHistory, t('tmux.history.empty'));
+                syncHistoryScroll(cardElements.history, historyText);
+
+                if (document.activeElement !== cardElements.input) {
+                    cardElements.input.value = getTmuxDraft(agentId);
+                }
+
+                if (!cardElements.feedback.classList.contains('ok') && !cardElements.feedback.classList.contains('error')) {
+                    cardElements.feedback.className = 'send-feedback';
+                    cardElements.feedback.textContent = t('tmux.captured', {
+                        time: formatDateTime(agent.captured_at),
+                    }, `captured: ${formatDateTime(agent.captured_at)}`);
+                }
+            }
+
+            for (const cardId of Object.keys(state.tmuxCards)) {
+                if (seenIds.has(cardId)) {
+                    continue;
+                }
+
+                const cardElements = state.tmuxCards[cardId];
+                if (cardElements?.card instanceof HTMLElement) {
+                    cardElements.card.remove();
+                }
+                delete state.tmuxCards[cardId];
+            }
+
+            if (focusedAgentId !== '') {
+                const focusedCard = state.tmuxCards[focusedAgentId];
+                if (focusedCard?.input instanceof HTMLTextAreaElement && document.activeElement !== focusedCard.input) {
+                    focusedCard.input.focus({
+                        preventScroll: true
+                    });
+                    if (typeof focusedSelectionStart === 'number' && typeof focusedSelectionEnd === 'number') {
+                        focusedCard.input.setSelectionRange(focusedSelectionStart, focusedSelectionEnd);
+                    }
+                }
+            }
+        }
+
+        async function refreshTmuxSnapshot() {
+            if (!tmuxSnapshotEndpoint) {
+                return;
+            }
+
+            try {
+                const response = await fetch(tmuxSnapshotEndpoint, {
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                    cache: 'no-store',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`tmux snapshot fetch failed: ${response.status}`);
+                }
+
+                const payload = await response.json();
+                renderTmuxSnapshot(payload);
+            } catch (error) {
+                if (tmuxError instanceof HTMLElement) {
+                    tmuxError.hidden = false;
+                    tmuxError.textContent = t('tmux.fetch_failed', {}, 'tmux情報の取得に失敗しました。');
+                }
+                if (dispatcherError instanceof HTMLElement) {
+                    dispatcherError.hidden = false;
+                    dispatcherError.textContent = t('tmux.fetch_failed', {}, 'tmux情報の取得に失敗しました。');
+                }
+                console.error(error);
+            }
+        }
+
+        function renderSummary(snapshot) {
+            const runtime = snapshot.runtime || {};
+            const tasks = snapshot.tasks || {};
+            const reviews = snapshot.reviews || {};
+
+            const taskCounts = tasks.counts || {};
+            const reviewCounts = reviews.counts || {};
+            const reviewCycle = runtime.review_cycle || {};
+
+            setText('sessionValue', runtime.session || '-', '-');
+            setText('startedAtValue', t('summary.started_at', {
+                time: formatDateTime(runtime.started_at),
+            }, `started: ${formatDateTime(runtime.started_at)}`));
+
+            setText('taskInflightValue', taskCounts.inflight ?? 0, '0');
+            setText(
+                'taskCountValue',
+                t('summary.task_counts', {
+                    pending: taskCounts.pending ?? 0,
+                    done: taskCounts.done ?? 0,
+                    blocked: taskCounts.blocked ?? 0,
+                }, `pending ${taskCounts.pending ?? 0} / done ${taskCounts.done ?? 0} / blocked ${taskCounts.blocked ?? 0}`)
+            );
+
+            setText('reviewInflightValue', reviewCounts.inflight ?? 0, '0');
+            setText('reviewCountValue', t('summary.review_counts', {
+                pending: reviewCounts.pending ?? 0,
+                done: reviewCounts.done ?? 0,
+            }, `pending ${reviewCounts.pending ?? 0} / done ${reviewCounts.done ?? 0}`));
+
+            setText('coordinatorValue', runtime.coordinator ?? '-');
+            setText('taskAuthorValue', t('summary.task_author', {
+                state: toText(runtime.task_author, '-'),
+            }, `task_author: ${toText(runtime.task_author, '-')}`));
+
+            setText('dispatcherValue', runtime.dispatcher ?? '-');
+            setText(
+                'reviewCycleValue',
+                t('summary.review_cycle', {
+                    cycle_id: toText(reviewCycle.cycle_id, '-'),
+                    active: reviewCycle.active ? '1' : '0',
+                }, `cycle: ${toText(reviewCycle.cycle_id, '-')} / active: ${reviewCycle.active ? '1' : '0'}`)
+            );
+
+            setText('generatedAtValue', formatDateTime(snapshot.generated_at));
+
+            missingRootWarning.hidden = Boolean(snapshot.root_exists);
+        }
+
+        function renderWorkers(snapshot) {
+            const workersNode = document.getElementById('workers');
+            const workers = (snapshot.runtime && Array.isArray(snapshot.runtime.workers)) ?
+                snapshot.runtime.workers :
+                [];
+            const previousWorkerStateMap = state.workerStateMap;
+            const hasPreviousWorkerStates = Object.keys(previousWorkerStateMap).length > 0;
+            const nextWorkerStateMap = {};
+            const workerGroups = [
+                {
+                    key: 'specialists',
+                    label: t('workers.group.specialists', {}, 'Investigation / Analyst / Tester'),
+                    sections: ['investigation', 'analyst', 'tester'],
+                },
+                {
+                    key: 'implementer',
+                    label: t('workers.group.implementer', {}, 'Implementer'),
+                    sections: ['implementer'],
+                },
+                {
+                    key: 'reviewer',
+                    label: t('workers.group.reviewer', {}, 'Reviewer'),
+                    sections: ['reviewer'],
+                },
+            ];
+
+            document.getElementById('workerCount').textContent = t('workers.count', {
+                count: workers.length,
+            }, `${workers.length} agents`);
+
+            preserveScroll(workersNode, () => {
+                workersNode.innerHTML = '';
+
+                if (workers.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'muted';
+                    empty.textContent = t('workers.empty', {}, 'agent情報なし');
+                    workersNode.appendChild(empty);
+                    return;
+                }
+
+                for (const group of workerGroups) {
+                    const groupWorkers = workers.filter((worker) => {
+                        const section = normalizeToken(worker.section || worker.persona || '', '');
+                        return group.sections.includes(section);
+                    });
+
+                    if (groupWorkers.length === 0) {
+                        continue;
+                    }
+
+                    const groupNode = document.createElement('section');
+                    groupNode.className = 'worker-group';
+
+                    const head = document.createElement('div');
+                    head.className = 'worker-group-head';
+
+                    const label = document.createElement('strong');
+                    label.className = 'worker-group-label';
+                    label.textContent = group.label;
+                    head.appendChild(label);
+
+                    const meta = document.createElement('span');
+                    meta.className = 'worker-group-meta';
+                    meta.textContent = t('workers.count', {
+                        count: groupWorkers.length,
+                    }, `${groupWorkers.length} agents`);
+                    head.appendChild(meta);
+
+                    const groupGrid = document.createElement('div');
+                    groupGrid.className = 'worker-group-grid';
+
+                    for (const worker of groupWorkers) {
+                        const workerId = toText(worker.id, 'worker?');
+                        const workerState = toText(worker.state, 'unknown');
+                        const row = document.createElement('div');
+                        row.className = `worker-row state-${normalizeToken(workerState, 'unknown')}`;
+
+                        const previousState = previousWorkerStateMap[workerId];
+                        if (
+                            hasPreviousWorkerStates &&
+                            typeof previousState === 'string' &&
+                            previousState !== workerState
+                        ) {
+                            row.classList.add('state-shift');
+                        }
+
+                        const left = document.createElement('div');
+                        left.className = 'worker-row-main';
+                        const strong = document.createElement('strong');
+                        strong.textContent = toText(worker.label, workerId);
+                        left.appendChild(strong);
+
+                        const workerMeta = document.createElement('span');
+                        workerMeta.className = 'muted';
+                        workerMeta.textContent = [toText(worker.id, '-'), toText(worker.runtime, '-'), toText(worker.model, '')]
+                            .filter((value) => value !== '')
+                            .join(' / ');
+                        left.appendChild(workerMeta);
+
+                        const right = document.createElement('div');
+                        right.className = 'chips';
+                        right.appendChild(createChip(workerState));
+                        if (toText(worker.persona, '') !== '') {
+                            right.appendChild(createChip(worker.persona));
+                        }
+
+                        row.appendChild(left);
+                        row.appendChild(right);
+                        groupGrid.appendChild(row);
+                        nextWorkerStateMap[workerId] = workerState;
+                    }
+
+                    groupNode.appendChild(head);
+                    groupNode.appendChild(groupGrid);
+                    workersNode.appendChild(groupNode);
+                }
+            }, {
+                adjustForGrowth: true,
+                stickToBottom: false,
+            });
+
+            state.workerStateMap = nextWorkerStateMap;
+        }
+
+        function statusSortWeight(status) {
+            const normalized = normalizeToken(status, 'unknown');
+
+            if (normalized === 'inflight' || normalized === 'running') {
+                return 0;
+            }
+
+            if (normalized === 'blocked' || normalized === 'attention') {
+                return 1;
+            }
+
+            if (normalized === 'pending' || normalized === 'queued') {
+                return 2;
+            }
+
+            return 3;
+        }
+
+        function progressBucketLabel(item, group) {
+            const type = normalizeToken(item?.type, '');
+            const status = normalizeToken(item?.status, 'unknown');
+
+            if (group === 'implementation') {
+                if (status === 'pending' || status === 'queued') {
+                    return t('progress.bucket.implementation.pending', {}, '保留');
+                }
+
+                if (status === 'blocked' || status === 'requestchange' || status === 'rework') {
+                    return t('progress.bucket.implementation.rework', {}, '差し戻し');
+                }
+
+                if (status === 'attention') {
+                    return t('progress.bucket.implementation.attention', {}, '要確認');
+                }
+
+                if (status === 'unknown') {
+                    return t('progress.bucket.implementation.unknown', {}, '未確定');
+                }
+
+                return t('progress.bucket.implementation.running', {}, '実装中');
+            }
+
+            if (type === 'review') {
+                if (status === 'pending' || status === 'queued') {
+                    return t('progress.bucket.review.pending', {}, 'レビュー待ち');
+                }
+
+                if (status === 'blocked' || status === 'requestchange' || status === 'rework') {
+                    return t('progress.bucket.review.rework', {}, 'レビュー差戻し');
+                }
+
+                if (status === 'unknown') {
+                    return t('progress.bucket.review.unknown', {}, 'レビュー未確定');
+                }
+
+                return t('progress.bucket.review.running', {}, 'レビュー中');
+            }
+
+            if (status === 'pending' || status === 'queued') {
+                return t('progress.bucket.research.pending', {}, '調査待ち');
+            }
+
+            if (status === 'blocked' || status === 'requestchange' || status === 'rework') {
+                return t('progress.bucket.research.blocked', {}, '調査保留');
+            }
+
+            if (status === 'unknown') {
+                return t('progress.bucket.research.unknown', {}, '調査未確定');
+            }
+
+            return t('progress.bucket.research.running', {}, '調査中');
+        }
+
+        function summarizeProgressBuckets(items, group) {
+            const order = group === 'implementation' ?
+                [
+                    t('progress.bucket.implementation.running', {}, '実装中'),
+                    t('progress.bucket.implementation.pending', {}, '保留'),
+                    t('progress.bucket.implementation.rework', {}, '差し戻し'),
+                    t('progress.bucket.implementation.attention', {}, '要確認'),
+                    t('progress.bucket.implementation.unknown', {}, '未確定'),
+                ] :
+                [
+                    t('progress.bucket.research.running', {}, '調査中'),
+                    t('progress.bucket.research.pending', {}, '調査待ち'),
+                    t('progress.bucket.research.blocked', {}, '調査保留'),
+                    t('progress.bucket.research.unknown', {}, '調査未確定'),
+                    t('progress.bucket.review.running', {}, 'レビュー中'),
+                    t('progress.bucket.review.pending', {}, 'レビュー待ち'),
+                    t('progress.bucket.review.rework', {}, 'レビュー差戻し'),
+                    t('progress.bucket.review.unknown', {}, 'レビュー未確定'),
+                ];
+            const counts = new Map();
+
+            for (const item of items) {
+                const label = progressBucketLabel(item, group);
+                counts.set(label, (counts.get(label) || 0) + 1);
+            }
+
+            const parts = order
+                .filter((label) => counts.has(label))
+                .map((label) => `${label}(${counts.get(label)})`);
+
+            return parts.length > 0 ?
+                parts.join(t('progress.separator', {}, '・')) :
+                (group === 'implementation' ?
+                    t('progress.implementation.default', {}, '実装中・保留') :
+                    t('progress.research.default', {}, '調査・レビュー進行'));
+        }
+
+        function renderActiveItems(nodeId, items, emptyLabel) {
+            const node = document.getElementById(nodeId);
+            if (!(node instanceof HTMLElement)) {
+                return;
+            }
+
+            preserveScroll(node, () => {
+                node.innerHTML = '';
+
+                if (items.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'muted';
+                    empty.textContent = emptyLabel;
+                    node.appendChild(empty);
+                    return;
+                }
+
+                for (const item of items) {
+                    const card = document.createElement('article');
+                    card.className = 'active-item';
+
+                    const top = document.createElement('div');
+                    top.className = 'active-item-top';
+
+                    const main = document.createElement('div');
+                    main.className = 'active-item-main';
+
+                    const title = document.createElement('div');
+                    title.className = 'active-item-title';
+                    title.textContent = `${toText(item.id, '-')}: ${toText(item.title, t('task.title.empty', {}, '(titleなし)'))}`;
+
+                    const meta = document.createElement('div');
+                    meta.className = 'active-item-meta';
+                    const updatedText = formatDateTime(item.updated_at || item.completed_at || item.created_at);
+                    meta.textContent = `${toText(item.assigned_to, '-')} / ${toText(item.persona, '-')} / ${updatedText}`;
+
+                    main.appendChild(title);
+                    main.appendChild(meta);
+
+                    const chips = document.createElement('div');
+                    chips.className = 'chips';
+                    chips.appendChild(createChip(item.status));
+
+                    const resultToken = normalizeToken(item.result, '');
+                    if (resultToken !== '' && resultToken !== 'unknown') {
+                        chips.appendChild(createChip(item.result));
+                    }
+
+                    top.appendChild(main);
+                    top.appendChild(chips);
+                    card.appendChild(top);
+
+                    node.appendChild(card);
+                }
+            }, {
+                adjustForGrowth: true,
+                stickToBottom: false,
+            });
+        }
+
+        function renderActiveProgress(snapshot) {
+            const taskItems = Array.isArray(snapshot.tasks?.items) ? snapshot.tasks.items : [];
+            const reviewItems = Array.isArray(snapshot.reviews?.items) ? snapshot.reviews.items : [];
+
+            const implementItems = taskItems
+                .filter((item) => {
+                    const status = normalizeToken(item?.status, 'unknown');
+                    const type = normalizeToken(item?.type, '');
+
+                    if (status === 'done') {
+                        return false;
+                    }
+
+                    return type !== 'investigation' && type !== 'analyst';
+                })
+                .sort((left, right) => {
+                    const weightDiff = statusSortWeight(left?.status) - statusSortWeight(right?.status);
+                    if (weightDiff !== 0) {
+                        return weightDiff;
+                    }
+
+                    return toEpoch(right?.updated_at || right?.completed_at || right?.created_at) -
+                        toEpoch(left?.updated_at || left?.completed_at || left?.created_at);
+                });
+
+            const researchTaskItems = taskItems
+                .filter((item) => {
+                    const type = normalizeToken(item?.type, '');
+                    const status = normalizeToken(item?.status, 'unknown');
+                    return (type === 'investigation' || type === 'analyst') && status !== 'done';
+                });
+
+            const activeReviewItems = reviewItems.filter((item) => normalizeToken(item?.status, 'unknown') !== 'done');
+            const researchItems = [...researchTaskItems, ...activeReviewItems]
+                .sort((left, right) => {
+                    const weightDiff = statusSortWeight(left?.status) - statusSortWeight(right?.status);
+                    if (weightDiff !== 0) {
+                        return weightDiff;
+                    }
+
+                    return toEpoch(right?.updated_at || right?.completed_at || right?.created_at) -
+                        toEpoch(left?.updated_at || left?.completed_at || left?.created_at);
+                });
+
+            setText('activeImplementCount', implementItems.length, '0');
+            setText('activeResearchCount', researchItems.length, '0');
+            setText('activeMeta', t('progress.meta', {
+                implement: implementItems.length,
+                research: researchItems.length,
+            }, `implement ${implementItems.length} / research+review ${researchItems.length}`));
+            setText('activeImplementLabel', summarizeProgressBuckets(implementItems, 'implementation'), t('progress.implementation.default', {}, '実装中・保留'));
+            setText('activeResearchLabel', summarizeProgressBuckets(researchItems, 'research'), t('progress.research.default', {}, '調査・レビュー進行'));
+
+            renderActiveItems('activeImplementList', implementItems, t('progress.implementation.empty', {}, '進行中の実装・再作業タスクはありません'));
+            renderActiveItems('activeResearchList', researchItems, t('progress.research.empty', {}, '進行中の調査・レビューはありません'));
+        }
+
+        function renderTimeline(snapshot) {
+            const timelineNode = document.getElementById('timeline');
+            const events = Array.isArray(snapshot.events) ? [...snapshot.events] : [];
+            events.sort((left, right) => toEpoch(right?.completed_at) - toEpoch(left?.completed_at));
+            document.getElementById('eventCount').textContent = t('timeline.count', {
+                count: events.length,
+            }, `${events.length} items`);
+            const previousSignatures = state.timelineSignatures;
+            const nextSignatures = new Set();
+            const shouldAnimateNewItem = state.timelineInitialized === true;
+
+            preserveScroll(timelineNode, () => {
+                timelineNode.innerHTML = '';
+
+                if (events.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'muted';
+                    empty.textContent = t('timeline.empty', {}, 'イベントはまだありません');
+                    timelineNode.appendChild(empty);
+                    return;
+                }
+
+                for (const [index, event] of events.entries()) {
+                    const item = document.createElement('article');
+                    item.className = `timeline-item state-${normalizeToken(event.result, 'unknown')}`;
+                    const signature = `${toText(event.id, '')}|${toText(event.completed_at, '')}|${toText(event.result, '')}`;
+                    nextSignatures.add(signature);
+                    if (shouldAnimateNewItem && !previousSignatures.has(signature)) {
+                        item.classList.add('item-new');
+                        item.style.setProperty('--item-delay', `${Math.min(index, 8) * 38}ms`);
+                    }
+
+                    const top = document.createElement('div');
+                    top.className = 'item-top';
+
+                    const chips = document.createElement('div');
+                    chips.className = 'chips';
+                    chips.appendChild(createChip(event.status));
+                    chips.appendChild(createChip(event.result));
+
+                    if (event.review_decision) {
+                        chips.appendChild(createChip(event.review_decision));
+                    }
+
+                    const date = document.createElement('span');
+                    date.className = 'muted';
+                    date.textContent = formatDateTime(event.completed_at);
+
+                    top.appendChild(chips);
+                    top.appendChild(date);
+
+                    const title = document.createElement('div');
+                    title.className = 'timeline-title';
+                    title.textContent = `${toText(event.worker_id, 'worker?')} / ${toText(event.task_id, 'task?')}`;
+
+                    const summary = document.createElement('div');
+                    summary.className = 'timeline-summary';
+                    summary.textContent = toText(event.summary, t('timeline.summary.empty', {}, '(summaryなし)'));
+
+                    item.appendChild(top);
+                    item.appendChild(title);
+                    item.appendChild(summary);
+
+                    timelineNode.appendChild(item);
+                }
+            }, {
+                adjustForGrowth: true,
+                stickToBottom: false,
+            });
+
+            state.timelineSignatures = nextSignatures;
+            state.timelineInitialized = true;
+        }
+
+        function renderCommand(snapshot) {
+            const command = snapshot.command || {};
+            const chipsNode = document.getElementById('commandChips');
+            const commandTextNode = document.getElementById('commandText');
+            const reviewCycleActive = Boolean(snapshot.runtime?.review_cycle?.active);
+
+            const rawStatus = toText(command.status, 'unknown');
+            const normalizedStatus = normalizeToken(rawStatus, 'unknown');
+            const displayStatus = reviewCycleActive && normalizedStatus === 'done' ?
+                'reviewing' :
+                rawStatus;
+
+            chipsNode.innerHTML = '';
+            chipsNode.appendChild(createChip(displayStatus));
+
+            if (command.priority) {
+                chipsNode.appendChild(createChip(command.priority));
+            }
+
+            if (command.assigned_to) {
+                chipsNode.appendChild(createChip(command.assigned_to));
+            }
+
+            const idText = toText(command.id, '-');
+            const updatedText = formatDateTime(command.updated_at);
+            const reviewActiveNote = reviewCycleActive ? t('command.review_active_suffix', {}, ' / review active') : '';
+            setText('commandMeta', `${idText} / ${updatedText}${reviewActiveNote}`);
+
+            commandTextNode.textContent = toText(command.command, t('command.empty', {}, '(command がありません)'));
+        }
+
+        function renderWorkItems(tbodyId, mobileListId, items, listMetaId, emptyLabel) {
+            const tbody = document.getElementById(tbodyId);
+            const mobileList = document.getElementById(mobileListId);
+            tbody.innerHTML = '';
+            mobileList.innerHTML = '';
+            const signatureKey = `${tbodyId}|${mobileListId}`;
+            const previousSignatures = state.workItemSignatures[signatureKey] instanceof Set ?
+                state.workItemSignatures[signatureKey] :
+                new Set();
+            const nextSignatures = new Set();
+            const shouldAnimateNewItem = state.workItemInitialized[signatureKey] === true;
+
+            const rows = Array.isArray(items) ? items : [];
+            document.getElementById(listMetaId).textContent = t('history.count', {
+                count: rows.length,
+            }, `${rows.length} items`);
+
+            if (rows.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = 5;
+                td.className = 'muted';
+                td.textContent = emptyLabel;
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+
+                const empty = document.createElement('div');
+                empty.className = 'muted';
+                empty.textContent = emptyLabel;
+                mobileList.appendChild(empty);
+                state.workItemSignatures[signatureKey] = nextSignatures;
+                state.workItemInitialized[signatureKey] = true;
+                return;
+            }
+
+            for (const [index, item] of rows.entries()) {
+                const signature = [
+                    toText(item.id, ''),
+                    toText(item.updated_at || item.completed_at || item.created_at, ''),
+                    toText(item.status, ''),
+                    toText(item.result, ''),
+                ].join('|');
+                nextSignatures.add(signature);
+                const isNewItem = shouldAnimateNewItem && !previousSignatures.has(signature);
+
+                const tr = document.createElement('tr');
+                tr.className = 'table-clickable';
+                tr.tabIndex = 0;
+                tr.setAttribute('role', 'button');
+                tr.setAttribute('aria-label', t('task.detail.open_aria', {
+                    id: toText(item.id, '-'),
+                }, `タスク詳細を表示: ${toText(item.id, '-')}`));
+                bindTaskDetailOpen(tr, item);
+                if (isNewItem) {
+                    tr.classList.add('row-new');
+                    tr.style.setProperty('--row-delay', `${Math.min(index, 9) * 24}ms`);
+                }
+
+                const taskCell = document.createElement('td');
+                const id = document.createElement('div');
+                id.className = 'mono';
+                id.textContent = toText(item.id, '-');
+                const title = document.createElement('div');
+                title.textContent = toText(item.title, t('task.title.empty', {}, '(titleなし)'));
+                const small = document.createElement('div');
+                small.className = 'small';
+                small.textContent = t('task.depends_on.count', {
+                    count: item.depends_on_count ?? 0,
+                }, `depends_on: ${item.depends_on_count ?? 0}`);
+                taskCell.appendChild(id);
+                taskCell.appendChild(title);
+                taskCell.appendChild(small);
+
+                const assigneeCell = document.createElement('td');
+                const assigneeValue = document.createElement('div');
+                assigneeValue.textContent = toText(item.assigned_to, '-');
+                const assigneeMeta = document.createElement('div');
+                assigneeMeta.className = 'small';
+                assigneeMeta.textContent = toText(item.persona, '-');
+                assigneeCell.appendChild(assigneeValue);
+                assigneeCell.appendChild(assigneeMeta);
+
+                const statusCell = document.createElement('td');
+                statusCell.appendChild(createChip(item.status));
+
+                const resultCell = document.createElement('td');
+                resultCell.appendChild(createChip(item.result || 'unknown'));
+
+                const updatedCell = document.createElement('td');
+                const updatedValue = document.createElement('div');
+                updatedValue.textContent = formatDateTime(item.updated_at || item.completed_at || item.created_at);
+                const updatedMeta = document.createElement('div');
+                updatedMeta.className = 'small';
+                updatedMeta.textContent = toText(item.command_id, '-');
+                updatedCell.appendChild(updatedValue);
+                updatedCell.appendChild(updatedMeta);
+
+                tr.appendChild(taskCell);
+                tr.appendChild(assigneeCell);
+                tr.appendChild(statusCell);
+                tr.appendChild(resultCell);
+                tr.appendChild(updatedCell);
+
+                tbody.appendChild(tr);
+
+                const mobileItem = document.createElement('article');
+                mobileItem.className = 'mobile-item clickable';
+                mobileItem.tabIndex = 0;
+                mobileItem.setAttribute('role', 'button');
+                mobileItem.setAttribute('aria-label', t('task.detail.open_aria', {
+                    id: toText(item.id, '-'),
+                }, `タスク詳細を表示: ${toText(item.id, '-')}`));
+                bindTaskDetailOpen(mobileItem, item);
+                if (isNewItem) {
+                    mobileItem.classList.add('row-new');
+                    mobileItem.style.setProperty('--row-delay', `${Math.min(index, 9) * 24}ms`);
+                }
+
+                const mobileTop = document.createElement('div');
+                mobileTop.className = 'item-top';
+
+                const mobileId = document.createElement('span');
+                mobileId.className = 'mono';
+                mobileId.textContent = toText(item.id, '-');
+                mobileTop.appendChild(mobileId);
+
+                const mobileChips = document.createElement('div');
+                mobileChips.className = 'chips';
+                mobileChips.appendChild(createChip(item.status));
+                mobileChips.appendChild(createChip(item.result || 'unknown'));
+                mobileTop.appendChild(mobileChips);
+
+                const mobileMain = document.createElement('div');
+                mobileMain.className = 'main';
+
+                const mobileTitle = document.createElement('div');
+                mobileTitle.className = 'title';
+                mobileTitle.textContent = toText(item.title, t('task.title.empty', {}, '(titleなし)'));
+                mobileMain.appendChild(mobileTitle);
+
+                const mobileLine1 = document.createElement('div');
+                mobileLine1.className = 'meta-line';
+                mobileLine1.textContent = t('task.mobile.assignee_meta', {
+                    assigned_to: toText(item.assigned_to, '-'),
+                    persona: toText(item.persona, '-'),
+                }, `担当: ${toText(item.assigned_to, '-')} / ${toText(item.persona, '-')}`);
+                mobileMain.appendChild(mobileLine1);
+
+                const mobileLine2 = document.createElement('div');
+                mobileLine2.className = 'meta-line';
+                mobileLine2.textContent = t('task.mobile.updated_meta', {
+                    updated: formatDateTime(item.updated_at || item.completed_at || item.created_at),
+                }, `更新: ${formatDateTime(item.updated_at || item.completed_at || item.created_at)}`);
+                mobileMain.appendChild(mobileLine2);
+
+                const mobileLine3 = document.createElement('div');
+                mobileLine3.className = 'meta-line';
+                mobileLine3.textContent = t('task.mobile.depends_command_meta', {
+                    depends_on: item.depends_on_count ?? 0,
+                    command_id: toText(item.command_id, '-'),
+                }, `depends_on: ${item.depends_on_count ?? 0} / command: ${toText(item.command_id, '-')}`);
+                mobileMain.appendChild(mobileLine3);
+
+                mobileItem.appendChild(mobileTop);
+                mobileItem.appendChild(mobileMain);
+                mobileList.appendChild(mobileItem);
+            }
+
+            state.workItemSignatures[signatureKey] = nextSignatures;
+            state.workItemInitialized[signatureKey] = true;
+        }
+
+        function render(snapshot) {
+            renderSummary(snapshot);
+            renderWorkers(snapshot);
+            renderTimeline(snapshot);
+            renderCommand(snapshot);
+            renderActiveProgress(snapshot);
+
+            renderWorkItems(
+                'taskTableBody',
+                'taskMobileList',
+                snapshot.tasks?.items ?? [],
+                'taskListMeta',
+                t('history.empty', {}, 'タスクデータなし')
+            );
+        }
+
+        async function refreshSnapshot() {
+            try {
+                const response = await fetch(snapshotEndpoint, {
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                    cache: 'no-store',
+                });
+
+                if (!response.ok) {
+                    throw new Error(`snapshot fetch failed: ${response.status}`);
+                }
+
+                const payload = await response.json();
+                state.snapshot = payload;
+                render(payload);
+            } catch (_error) {
+                setConnectionState('error');
+            }
+        }
+
+        function scheduleReconnect(delayMs = 1800) {
+            if (state.reconnectTimer) {
+                window.clearTimeout(state.reconnectTimer);
+            }
+
+            state.reconnectTimer = window.setTimeout(() => {
+                connectStream();
+            }, delayMs);
+        }
+
+        function connectStream() {
+            if (state.eventSource) {
+                state.eventSource.close();
+            }
+
+            setConnectionState('connecting');
+
+            const lastChecksum = encodeURIComponent(toText(state.snapshot?.checksum, ''));
+            const url = `${streamEndpoint}?last_checksum=${lastChecksum}`;
+            const eventSource = new EventSource(url);
+            state.eventSource = eventSource;
+
+            eventSource.addEventListener('open', () => {
+                setConnectionState('live');
+            });
+
+            eventSource.addEventListener('snapshot', (event) => {
+                try {
+                    const payload = JSON.parse(event.data);
+                    state.snapshot = payload;
+                    render(payload);
+                    setConnectionState('live');
+                } catch (_error) {
+                    setConnectionState('error');
+                }
+            });
+
+            eventSource.addEventListener('heartbeat', () => {
+                setConnectionState('live');
+            });
+
+            eventSource.addEventListener('close', () => {
+                eventSource.close();
+                setConnectionState('retrying');
+                scheduleReconnect(450);
+            });
+
+            eventSource.onerror = () => {
+                eventSource.close();
+                setConnectionState('retrying');
+                scheduleReconnect();
+            };
+        }
+
+        document.getElementById('manualRefresh').addEventListener('click', async () => {
+            await refreshSnapshot();
+            await refreshTmuxSnapshot();
+            connectStream();
+        });
+
+        if (languageSelect instanceof HTMLSelectElement) {
+            languageSelect.addEventListener('change', async () => {
+                const nextLanguage = resolveLanguageCandidate(languageSelect.value);
+                if (nextLanguage === '' || nextLanguage === state.language) {
+                    updateLanguageSelect();
+                    return;
+                }
+
+                await setLanguage(nextLanguage);
+                render(state.snapshot);
+                if (state.activeTab === 'terminal' || state.activeTab === 'dispatcher') {
+                    await refreshTmuxSnapshot();
+                }
+            });
+        }
+
+        for (const button of tabButtons) {
+            button.addEventListener('click', () => {
+                activateTab(button.dataset.tabButton || 'overview');
+            });
+        }
+
+        for (const button of overviewModeButtons) {
+            button.addEventListener('click', () => {
+                activateOverviewMode(button.dataset.overviewModeButton || 'ops');
+            });
+        }
+
+        for (const closeTrigger of document.querySelectorAll('[data-task-modal-close="1"]')) {
+            closeTrigger.addEventListener('click', () => {
+                closeTaskDetailModal();
+            });
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeTaskDetailModal();
+            }
+        });
+
+        async function bootstrap() {
+            try {
+                await loadLanguageCatalog();
+                await setLanguage(resolvePreferredLanguage(), {
+                    persist: false,
+                });
+            } catch (_error) {
+                state.messages = {};
+                state.fallbackMessages = {};
+                state.language = defaultLanguageCode();
+                state.languageCatalog = [];
+                applyStaticTranslations();
+            }
+
+            render(state.snapshot);
+            connectStream();
+            activateTab('overview');
+            activateOverviewMode('ops');
+            refreshTmuxSnapshot();
+
+            state.fallbackTimer = window.setInterval(() => {
+                refreshSnapshot();
+            }, 30000);
+
+            state.tmuxTimer = window.setInterval(() => {
+                refreshTmuxSnapshot();
+            }, 2000);
+        }
+
+        bootstrap();
+    </script>
+</body>
+
+</html>

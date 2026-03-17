@@ -1,0 +1,33 @@
+[coordinator]
+runtime = codex
+model =
+
+[task_author]
+runtime = claude
+model =
+
+[dispatcher]
+runtime = codex
+model =
+
+[investigation]
+runtime = claude
+model =
+
+[analyst]
+runtime = claude
+model =
+
+[tester]
+runtime = codex
+model =
+
+[implementer]
+runtime = claude
+model =
+count = 4
+
+[reviewer]
+runtime = codex
+model =
+count = 4
