@@ -3218,7 +3218,6 @@
             const workers = (snapshot.runtime && Array.isArray(snapshot.runtime.workers)) ?
                 snapshot.runtime.workers :
                 [];
-            const taskAuthorState = toText(snapshot.runtime?.task_author, 'unknown');
             const previousWorkerStateMap = state.workerStateMap;
             const hasPreviousWorkerStates = Object.keys(previousWorkerStateMap).length > 0;
             const nextWorkerStateMap = {};
@@ -3233,12 +3232,8 @@
             const overviewAgents = [
                 {
                     id: 'task_author',
-                    label: t('terminal.group.task_author', {}, 'Task Author'),
                     section: 'task_author',
-                    runtime: '',
-                    model: '',
-                    persona: '',
-                    state: taskAuthorState,
+                    state: toText(snapshot.runtime?.task_author, 'unknown'),
                 },
                 ...workers,
             ].sort((left, right) => {
@@ -3288,22 +3283,12 @@
                     const left = document.createElement('div');
                     left.className = 'worker-row-main';
                     const strong = document.createElement('strong');
-                    strong.textContent = toText(worker.label, workerId);
+                    strong.textContent = workerId;
                     left.appendChild(strong);
-
-                    const workerMeta = document.createElement('span');
-                    workerMeta.className = 'muted';
-                    workerMeta.textContent = [toText(worker.id, '-'), toText(worker.runtime, ''), toText(worker.model, '')]
-                        .filter((value) => value !== '')
-                        .join(' / ');
-                    left.appendChild(workerMeta);
 
                     const right = document.createElement('div');
                     right.className = 'chips';
                     right.appendChild(createChip(workerState));
-                    if (toText(worker.persona, '') !== '') {
-                        right.appendChild(createChip(worker.persona));
-                    }
 
                     row.appendChild(left);
                     row.appendChild(right);

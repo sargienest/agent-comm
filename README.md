@@ -2,7 +2,7 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` is a bash-first multi-agent runner for Codex / Claude setups with per-role runtime selection. Clone it under a target project, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the project root.
+`agent-comm` is a bash-first multi-agent runner for Codex / Claude setups with per-role runtime selection. Clone it wherever you want, point `agent_working_dir` at the target project or worktree, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the target project root.
 
 ![Dashboard overview](./docs/readme/dashboard-overview.png)
 
@@ -13,18 +13,20 @@
 - `codex` for `runtime = codex`
 - `claude` for `runtime = claude`
 - An authenticated session for each enabled runtime before `bin/agent-comm start`
+- The directory you set in `agent_working_dir` must already be trusted by the runtimes you use
 
 ## Quick Start
 
-1. From your project root, run `git clone https://github.com/sargienest/agent-comm.git`.
+1. Run `git clone https://github.com/sargienest/agent-comm.git`.
 2. Run `cd agent-comm`.
 3. Copy `agent-comm.ini.example` to `agent-comm.ini`.
 4. Copy `agents.ini.example` to `agents.ini`.
-5. Edit `agent-comm.ini`.
+5. Edit `agent-comm.ini` and set `runtime.agent_working_dir` to the target project or worktree.
 6. Edit `agents.ini`.
-7. Log in to the runtimes you use.
-8. Run `bin/agent-comm start`.
-9. Open the dashboard URL printed by `start` or `status`.
+7. Make sure the `agent_working_dir` path is already trusted by the runtimes you use.
+8. Log in to the runtimes you use.
+9. Run `bin/agent-comm start`.
+10. Open the dashboard URL printed by `start` or `status`.
 
 The shipped `agents.ini.example` stays Codex-only so the first launch works with one authenticated runtime. Switch any section to `claude` when you want a mixed topology.
 
