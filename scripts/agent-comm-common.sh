@@ -1469,10 +1469,7 @@ ac_agent_launch_command() {
 }
 
 ac_agent_startup_delay_seconds() {
-    case "$(ac_agent_runtime "$1")" in
-        claude) printf '4\n' ;;
-        *) printf '6\n' ;;
-    esac
+    printf '1\n'
 }
 
 ac_require_runtime_command() {
@@ -1596,8 +1593,11 @@ ac_render_command_notify_message() {
     local command_file="$1"
     local command_text="$2"
     ac_t_format "message.command_pending" \
+        "common_role=$(ac_role_path common)" \
+        "task_author_role=$(ac_role_path task_author)" \
         "command_file=${command_file}" \
         "personas_manifest=${ROLE_PERSONAS_MARKDOWN_FILE}" \
+        "repo_root=${AC_REPO_ROOT}" \
         "command_text=${command_text}"
 }
 
