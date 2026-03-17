@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 if ! tmux has-session -t "$AC_TMUX_SESSION_NAME" 2>/dev/null; then
-    ac_fail "tmux セッションが存在しません: ${AC_TMUX_SESSION_NAME}"
+    ac_fail "$(ac_t_format 'launch.error.session_missing' "session=${AC_TMUX_SESSION_NAME}")"
 fi
 
 while IFS= read -r runtime; do

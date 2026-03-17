@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 if tmux has-session -t "$AC_TMUX_SESSION_NAME" 2>/dev/null; then
-    ac_fail "セッション '${AC_TMUX_SESSION_NAME}' は既に存在します。"
+    ac_fail "$(ac_t_format 'start.error.session_exists' "session=${AC_TMUX_SESSION_NAME}")"
 fi
 
 ac_ensure_runtime_dirs

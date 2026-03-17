@@ -509,18 +509,14 @@ ensure_pre_review_test_gate_passed() {
     done < <(collect_done_primary_task_ids_for_command "$target_command_id")
 
     short_sig="${done_signature:0:8}"
-    description="全体レビュー前のテストゲートです。現在の実装差分に対してテストを実行し、失敗が今回変更に起因する場合は修正して再実行してください。"$'\n\n'
-    description+="完了条件:"$'\n'
-    description+="- 必要なテストを実行し、結果を summary / details に残すこと"$'\n'
-    description+="- 今回変更に起因する失敗があれば修正まで完了させること"$'\n'
-    description+="- 不明点があれば推測せず create-question.sh を使うこと"
+    description="$(ac_t 'task.pre_review_gate.description')"
 
     "${SCRIPT_DIR}/write-task.sh" \
         --id "$task_id" \
         --type implementation \
         --command-id "$target_command_id" \
         --persona tester \
-        --title "プレレビュー テストゲート (${short_sig})" \
+        --title "$(ac_t_format 'task.pre_review_gate.title' "short_sig=${short_sig}")" \
         --description "$description" \
         "${depends_args[@]}" \
         "${write_args[@]}" >/dev/null
@@ -592,18 +588,18 @@ create_aggregated_rework_task() {
     [ -n "$command_id" ] || return 1
 
     task_id="review_cycle${cycle_id}_rework_$(date '+%Y%m%d_%H%M%S')"
-    description="全体レビュー cycle ${cycle_id} で requestchange が出ました。"$'\n'
     if [ -n "$note_path" ]; then
-        description+="rework_note_path を確認して全指摘を反映してください。"$'\n'
+        description="$(ac_t_format 'task.review_rework.description.with_note' "cycle_id=${cycle_id}")"
+    else
+        description="$(ac_t_format 'task.review_rework.description.without_note' "cycle_id=${cycle_id}")"
     fi
-    description+="完了後は dispatcher が再度 tester と overall review を回します。"
 
     "${SCRIPT_DIR}/write-task.sh" \
         --id "$task_id" \
         --type rework \
         --command-id "$command_id" \
         --persona implementer \
-        --title "レビュー指摘対応 (cycle ${cycle_id})" \
+        --title "$(ac_t_format 'task.review_rework.title' "cycle_id=${cycle_id}")" \
         --description "$description" \
         "${depends_args[@]}" >/dev/null
 
@@ -677,9 +673,7 @@ generate_review_tasks_if_needed() {
     cycle_id=$((REVIEW_CYCLE_ID + 1))
     short_sig="${done_signature:0:8}"
     parent_id="review_cycle${cycle_id}"
-    description="全体差分をレビューし、approve か requestchange を判定してください。"$'\n'
-    description+="requestchange の場合は summary / details / rework_targets / findings を正しく記載してください。"$'\n'
-    description+="requestchange は dispatcher が集約して再作業を再配布します。"
+    description="$(ac_t 'task.overall_review.description')"
 
     parent_file="${REVIEW_PENDING_DIR}/${parent_id}.yaml"
     "${SCRIPT_DIR}/write-task.sh" \
@@ -687,7 +681,7 @@ generate_review_tasks_if_needed() {
         --type review \
         --command-id "$command_id" \
         --persona reviewer \
-        --title "全体レビュー cycle ${cycle_id} (${short_sig})" \
+        --title "$(ac_t_format 'task.overall_review.title' "cycle_id=${cycle_id}" "short_sig=${short_sig}")" \
         --description "$description" \
         "${depends_args[@]}" \
         "${write_args[@]}" >/dev/null
@@ -1141,7 +1135,7 @@ process_command_queue() {
 
     command_updated_at=$(ac_read_yaml_scalar "$command_file" "updated_at")
     command_text=$(ac_read_yaml_block "$command_file" "command")
-    [ -n "$command_text" ] || command_text="command.yaml を確認してください。"
+    [ -n "$command_text" ] || command_text="$(ac_t 'command.pending_fallback')"
     command_hash=$(printf '%s' "$command_text" | sha1sum | awk '{print $1}')
     key="${command_id}|${command_updated_at}|${command_hash}"
     set_contains_line "$COMMAND_NOTIFY_STATE_FILE" "$key" && return 0

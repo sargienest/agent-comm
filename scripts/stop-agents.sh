@@ -172,7 +172,7 @@ if [ "${#existing_sessions[@]}" -eq 0 ]; then
     rm -f "$DISPATCHER_PID_FILE" "$DISPATCHER_TOKEN_FILE"
     pkill -f "${AC_REPO_ROOT}/scripts/watch-reports.sh" >/dev/null 2>&1 || true
     write_offline_runtime_status "$status_session"
-    echo "セッション '${AC_TMUX_SESSION_NAME}' は存在しません。状態をクリアしました。"
+    ac_t_format "stop.session_missing_cleared" "session=${AC_TMUX_SESSION_NAME}"
     exit 0
 fi
 
@@ -180,7 +180,7 @@ if [ "${AC_STOP_DETACHED:-0}" != "1" ] && [ -n "${TMUX:-}" ]; then
     current_session="$(tmux display-message -p '#S' 2>/dev/null || true)"
     if session_in_list "$current_session" "${existing_sessions[@]}"; then
         run_detached_stop
-        echo "セッション '${current_session}' の停止をバックグラウンドで開始しました。"
+        ac_t_format "stop.session_detached_started" "session=${current_session}"
         exit 0
     fi
 fi
@@ -203,11 +203,11 @@ for session_name in "${existing_sessions[@]}"; do
 done
 
 if [ "${#remaining_sessions[@]}" -gt 0 ]; then
-    printf "セッション '%s' の停止に失敗しました。\n" "$(IFS=', '; echo "${remaining_sessions[*]}")" >&2
+    ac_t_format "stop.session_stop_failed" "sessions=$(IFS=', '; echo "${remaining_sessions[*]}")" >&2
     exit 1
 fi
 
 write_offline_runtime_status "$status_session"
 write_tmux_unavailable_snapshots
 
-printf "セッション '%s' を停止しました。\n" "$(IFS=', '; echo "${existing_sessions[*]}")"
+ac_t_format "stop.session_stopped" "sessions=$(IFS=', '; echo "${existing_sessions[*]}")"

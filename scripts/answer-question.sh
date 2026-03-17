@@ -8,10 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 usage() {
-    cat <<'USAGE'
-使い方:
-  ./scripts/answer-question.sh --question-id <task_id_qN> --answer <text>
-USAGE
+    ac_t "usage.answer_question"
 }
 
 QUESTION_ID=""
@@ -32,7 +29,7 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "❌ エラー: 不明な引数です: $1" >&2
+            ac_t_format "cli.error.unknown_argument" "arg=$1" >&2
             usage >&2
             exit 1
             ;;
@@ -48,7 +45,7 @@ ac_ensure_dirs
 
 source_file="${QUESTION_OPEN_DIR}/${QUESTION_ID}.yaml"
 if [ ! -f "$source_file" ]; then
-    echo "❌ エラー: open 質問が見つかりません: ${QUESTION_ID}" >&2
+    ac_t_format "answer_question.error.open_question_missing" "question_id=${QUESTION_ID}" >&2
     exit 1
 fi
 
@@ -61,4 +58,4 @@ ac_set_yaml_scalar "$source_file" "answered_at" "$now_iso"
 destination="${QUESTION_ANSWERED_DIR}/$(basename "$source_file")"
 mv "$source_file" "$destination"
 
-echo "✅ 質問に回答しました: ${destination}"
+ac_t_format "answer_question.success.answered" "destination=${destination}"

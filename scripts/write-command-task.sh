@@ -8,10 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 usage() {
-    cat <<'USAGE'
-使い方:
-  ./scripts/write-command-task.sh --command <指示本文> [--id <command_id>] [--priority <high|medium|low>] [--output <path>]
-USAGE
+    ac_t "usage.write_command_task"
 }
 
 COMMAND_TEXT=""
@@ -42,7 +39,7 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "❌ エラー: 不明な引数です: $1" >&2
+            ac_t_format "cli.error.unknown_argument" "arg=$1" >&2
             usage >&2
             exit 1
             ;;
@@ -50,14 +47,14 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$COMMAND_TEXT" ]; then
-    echo "❌ エラー: --command は必須です。" >&2
+    ac_t "write_command_task.error.command_required" >&2
     exit 1
 fi
 
 case "$PRIORITY" in
     high|medium|low) ;;
     *)
-        echo "❌ エラー: --priority は high|medium|low のみ指定できます。" >&2
+        ac_t "write_command_task.error.invalid_priority" >&2
         exit 1
         ;;
 esac
@@ -90,4 +87,4 @@ trap 'rm -f "$tmp_file"' EXIT
 ac_atomic_write_from_tmp "$tmp_file" "$OUTPUT_PATH"
 trap - EXIT
 
-echo "✅ command を更新しました: ${OUTPUT_PATH}"
+ac_t_format "write_command_task.success.updated" "output_path=${OUTPUT_PATH}"

@@ -782,10 +782,10 @@ ac_generate_role_manifest() {
             role_label="$(ac_parse_frontmatter_value "$role_file" "label")"
             role_required="$(ac_parse_frontmatter_value "$role_file" "required")"
             role_lang="$(ac_normalize_language "$(ac_parse_frontmatter_value "$role_file" "lang")")"
-            [ -n "$role_id" ] || ac_fail "role frontmatter の id がありません: ${role_file}"
-            [ -n "$role_kind" ] || ac_fail "role frontmatter の kind がありません: ${role_file}"
-            [ -n "$role_label" ] || ac_fail "role frontmatter の label がありません: ${role_file}"
-            [ -n "$role_lang" ] || ac_fail "role frontmatter の lang がありません: ${role_file}"
+            [ -n "$role_id" ] || ac_fail "$(ac_t_format 'common.error.role_frontmatter_missing' "field=id" "role_file=${role_file}")"
+            [ -n "$role_kind" ] || ac_fail "$(ac_t_format 'common.error.role_frontmatter_missing' "field=kind" "role_file=${role_file}")"
+            [ -n "$role_label" ] || ac_fail "$(ac_t_format 'common.error.role_frontmatter_missing' "field=label" "role_file=${role_file}")"
+            [ -n "$role_lang" ] || ac_fail "$(ac_t_format 'common.error.role_frontmatter_missing' "field=lang" "role_file=${role_file}")"
             case "$role_kind" in
                 agent|persona|shared) ;;
                 *) ac_fail "Invalid role kind: ${role_file} (${role_kind})" ;;
@@ -1463,7 +1463,7 @@ ac_agent_launch_command() {
             ac_claude_launch_command_for_agent "$agent_id"
             ;;
         *)
-            ac_fail "未対応 runtime です: $(ac_agent_runtime "$agent_id") / ${agent_id}"
+            ac_fail "$(ac_t_format 'common.error.unsupported_runtime' "runtime=$(ac_agent_runtime "$agent_id") / ${agent_id}")"
             ;;
     esac
 }
@@ -1476,7 +1476,7 @@ ac_require_runtime_command() {
     case "$1" in
         codex) command -v codex >/dev/null 2>&1 || ac_fail "Required command was not found: codex" ;;
         claude) command -v claude >/dev/null 2>&1 || ac_fail "Required command was not found: claude" ;;
-        *) ac_fail "未対応 runtime です: $1" ;;
+        *) ac_fail "$(ac_t_format 'common.error.unsupported_runtime' "runtime=$1")" ;;
     esac
 }
 
@@ -1494,7 +1494,7 @@ ac_require_runtime_auth() {
             fi
             ;;
         *)
-            ac_fail "未対応 runtime です: $1"
+            ac_fail "$(ac_t_format 'common.error.unsupported_runtime' "runtime=$1")"
             ;;
     esac
 }

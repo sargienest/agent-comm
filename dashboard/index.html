@@ -786,13 +786,13 @@
             padding: 8px;
             display: flex;
             flex-direction: row;
-            align-items: center;
-            justify-content: space-between;
+            align-items: flex-start;
+            justify-content: flex-start;
             gap: 6px;
             min-width: 0;
             min-height: 58px;
-            min-width: 168px;
-            flex: 1 0 168px;
+            width: 100%;
+            flex: 1 1 100%;
             transition: border-color 0.2s ease, transform 0.2s ease;
         }
 
@@ -844,8 +844,9 @@
 
         .worker-row-main {
             display: grid;
-            gap: 3px;
+            gap: 6px;
             min-height: 24px;
+            width: 100%;
         }
 
         .worker-row strong {
@@ -861,6 +862,42 @@
             justify-content: flex-end;
             flex-wrap: nowrap;
             align-items: center;
+        }
+
+        .worker-agent-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .worker-agent {
+            min-width: 0;
+            padding: 8px;
+            border-radius: 9px;
+            border: 1px solid rgba(156, 191, 216, 0.16);
+            background: rgba(10, 24, 38, 0.56);
+            display: grid;
+            gap: 6px;
+        }
+
+        .worker-agent-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .worker-agent-head strong {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .worker-agent-meta {
+            display: block;
+            font-size: 11px;
+            line-height: 1.35;
         }
 
         .command-box {
@@ -1621,8 +1658,12 @@
             }
 
             .worker-row {
-                min-width: 154px;
-                flex-basis: 154px;
+                min-width: 0;
+                flex-basis: 100%;
+            }
+
+            .worker-agent-grid {
+                grid-template-columns: 1fr;
             }
 
             .timeline-title {
@@ -3217,6 +3258,39 @@
                 .join(' ');
         }
 
+        function workerGroupVisualWeight(state) {
+            const normalized = normalizeToken(state, 'unknown');
+            if (normalized === 'blocked' || normalized === 'offline' || normalized === 'requestchange') {
+                return 0;
+            }
+            if (
+                normalized === 'inflight' ||
+                normalized === 'running' ||
+                normalized === 'attention' ||
+                normalized === 'task_breakdown' ||
+                normalized === 'research_dispatching'
+            ) {
+                return 1;
+            }
+            if (normalized === 'pending' || normalized === 'queued') {
+                return 2;
+            }
+            if (normalized === 'idle') {
+                return 3;
+            }
+            return 4;
+        }
+
+        function summarizeWorkerGroupState(groupAgents) {
+            if (!Array.isArray(groupAgents) || groupAgents.length === 0) {
+                return 'unknown';
+            }
+            const rankedStates = groupAgents
+                .map((agent) => toText(agent.state, 'unknown'))
+                .sort((left, right) => workerGroupVisualWeight(left) - workerGroupVisualWeight(right));
+            return rankedStates[0] || 'unknown';
+        }
+
         function renderWorkers(snapshot) {
             const workersNode = document.getElementById('workers');
             const workers = (snapshot.runtime && Array.isArray(snapshot.runtime.workers)) ?
@@ -3256,6 +3330,22 @@
                     sensitivity: 'base',
                 });
             });
+            const groupedAgents = [
+                {
+                    id: 'specialists',
+                    agents: overviewAgents.filter((worker) => ['task_author', 'investigation', 'analyst', 'tester'].includes(
+                        normalizeToken(worker.section || worker.id || '', 'unknown')
+                    )),
+                },
+                {
+                    id: 'implementers',
+                    agents: overviewAgents.filter((worker) => normalizeToken(worker.section || worker.id || '', 'unknown') === 'implementer'),
+                },
+                {
+                    id: 'reviewers',
+                    agents: overviewAgents.filter((worker) => normalizeToken(worker.section || worker.id || '', 'unknown') === 'reviewer'),
+                },
+            ].filter((group) => group.agents.length > 0);
 
             document.getElementById('workerCount').textContent = t('workers.count', {
                 count: overviewAgents.length,
@@ -3264,51 +3354,70 @@
             preserveScroll(workersNode, () => {
                 workersNode.innerHTML = '';
 
-                if (overviewAgents.length === 0) {
+                if (groupedAgents.length === 0) {
                     const empty = document.createElement('div');
                     empty.className = 'muted';
-                    empty.textContent = t('workers.empty', {}, 'agent情報なし');
+                    empty.textContent = t('workers.empty', {}, 'No agents');
                     workersNode.appendChild(empty);
                     return;
                 }
 
-                for (const worker of overviewAgents) {
-                    const workerId = toText(worker.id, 'worker?');
-                    const workerState = toText(worker.state, 'unknown');
+                for (const group of groupedAgents) {
+                    const groupState = summarizeWorkerGroupState(group.agents);
+                    const groupSignature = group.agents
+                        .map((agent) => `${toText(agent.id, 'worker?')}:${toText(agent.state, 'unknown')}`)
+                        .join('|');
                     const row = document.createElement('div');
-                    row.className = `worker-row state-${normalizeToken(workerState, 'unknown')}`;
+                    row.className = `worker-row state-${normalizeToken(groupState, 'unknown')}`;
 
-                    const previousState = previousWorkerStateMap[workerId];
+                    const previousState = previousWorkerStateMap[group.id];
                     if (
                         hasPreviousWorkerStates &&
                         typeof previousState === 'string' &&
-                        previousState !== workerState
+                        previousState !== groupSignature
                     ) {
                         row.classList.add('state-shift');
                     }
 
                     const left = document.createElement('div');
                     left.className = 'worker-row-main';
-                    const strong = document.createElement('strong');
-                    strong.textContent = workerId;
-                    left.appendChild(strong);
+                    const grid = document.createElement('div');
+                    grid.className = 'worker-agent-grid';
 
-                    const runtimeModel = formatAgentRuntimeModel(worker.runtime, worker.model);
-                    if (runtimeModel !== '') {
-                        const meta = document.createElement('span');
-                        meta.className = 'muted';
-                        meta.textContent = runtimeModel;
-                        left.appendChild(meta);
+                    for (const worker of group.agents) {
+                        const workerId = toText(worker.id, 'worker?');
+                        const workerState = toText(worker.state, 'unknown');
+                        const agentCard = document.createElement('div');
+                        agentCard.className = 'worker-agent';
+
+                        const head = document.createElement('div');
+                        head.className = 'worker-agent-head';
+
+                        const strong = document.createElement('strong');
+                        strong.textContent = workerId;
+                        head.appendChild(strong);
+
+                        const chips = document.createElement('div');
+                        chips.className = 'chips';
+                        chips.appendChild(createChip(workerState));
+                        head.appendChild(chips);
+                        agentCard.appendChild(head);
+
+                        const runtimeModel = formatAgentRuntimeModel(worker.runtime, worker.model);
+                        if (runtimeModel !== '') {
+                            const meta = document.createElement('span');
+                            meta.className = 'muted worker-agent-meta';
+                            meta.textContent = runtimeModel;
+                            agentCard.appendChild(meta);
+                        }
+
+                        grid.appendChild(agentCard);
                     }
-
-                    const right = document.createElement('div');
-                    right.className = 'chips';
-                    right.appendChild(createChip(workerState));
+                    left.appendChild(grid);
 
                     row.appendChild(left);
-                    row.appendChild(right);
                     workersNode.appendChild(row);
-                    nextWorkerStateMap[workerId] = workerState;
+                    nextWorkerStateMap[group.id] = groupSignature;
                 }
             }, {
                 adjustForGrowth: true,

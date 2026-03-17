@@ -7,11 +7,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 if [ $# -lt 1 ]; then
-    ac_fail "使い方: ./scripts/restart-agent.sh <coordinator|task_author|dispatcher|investigation|analyst|tester|implementers|reviewers|workers|implementerN|reviewerN|all>"
+    ac_fail "$(ac_t 'usage.restart_agent')"
 fi
 
 if ! tmux has-session -t "$AC_TMUX_SESSION_NAME" 2>/dev/null; then
-    ac_fail "tmux セッションが存在しません: ${AC_TMUX_SESSION_NAME}"
+    ac_fail "$(ac_t_format 'restart_agent.error.session_missing' "session=${AC_TMUX_SESSION_NAME}")"
 fi
 
 common_role="$(ac_role_path common)"
@@ -129,7 +129,7 @@ case "$1" in
         start_dispatcher "${AC_TMUX_SESSION_NAME}:dispatcher"
         ;;
     *)
-        ac_fail "不明な restart 対象です: $1"
+        ac_fail "$(ac_t_format 'restart_agent.error.invalid_target' "target=$1")"
         ;;
 esac
 

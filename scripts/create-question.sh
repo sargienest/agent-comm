@@ -8,10 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 usage() {
-    cat <<'USAGE'
-使い方:
-  ./scripts/create-question.sh --task-id <task_id> --question <text>
-USAGE
+    ac_t "usage.create_question"
 }
 
 TASK_ID=""
@@ -32,7 +29,7 @@ while [ $# -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "❌ エラー: 不明な引数です: $1" >&2
+            ac_t_format "cli.error.unknown_argument" "arg=$1" >&2
             usage >&2
             exit 1
             ;;
@@ -48,13 +45,13 @@ ac_assert_task_id "$TASK_ID"
 ac_ensure_dirs
 
 if ! task_file=$(ac_find_task_file_by_id "$TASK_ID" 2>/dev/null); then
-    echo "❌ エラー: task_id が見つかりません: ${TASK_ID}" >&2
+    ac_t_format "create_question.error.task_not_found" "task_id=${TASK_ID}" >&2
     exit 1
 fi
 
 state=$(ac_task_state_from_path "$task_file")
 if [ "$state" != "inflight" ]; then
-    echo "❌ エラー: inflight タスクのみ質問作成できます（現在: ${state}）" >&2
+    ac_t_format "create_question.error.inflight_only" "state=${state}" >&2
     exit 1
 fi
 
@@ -101,4 +98,4 @@ destination="${TASK_BLOCKED_DIR}/$(basename "$task_file")"
 mv "$task_file" "$destination"
 ac_release_task_locks "$destination"
 
-echo "✅ 質問を作成しました: ${question_file}"
+ac_t_format "create_question.success.created" "question_file=${question_file}"
