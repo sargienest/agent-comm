@@ -16,14 +16,15 @@
 
 ## Quick Start
 
-1. Clone this repository into `<project>/agent-comm`.
-2. Copy `agent-comm.ini.example` to `agent-comm.ini`.
-3. Copy `agents.ini.example` to `agents.ini`.
-4. Edit `agent-comm.ini`.
-5. Edit `agents.ini`.
-6. Log in to the runtimes you use.
-7. Run `bin/agent-comm start`.
-8. Open the dashboard URL printed by `start` or `status`.
+1. From your project root, run `git clone https://github.com/sargienest/agent-comm.git`.
+2. Run `cd agent-comm`.
+3. Copy `agent-comm.ini.example` to `agent-comm.ini`.
+4. Copy `agents.ini.example` to `agents.ini`.
+5. Edit `agent-comm.ini`.
+6. Edit `agents.ini`.
+7. Log in to the runtimes you use.
+8. Run `bin/agent-comm start`.
+9. Open the dashboard URL printed by `start` or `status`.
 
 The shipped `agents.ini.example` stays Codex-only so the first launch works with one authenticated runtime. Switch any section to `claude` when you want a mixed topology.
 
