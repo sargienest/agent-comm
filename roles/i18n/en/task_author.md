@@ -15,9 +15,7 @@ required: true
 - Dispatcher handles distribution and aggregation. task_author does not monitor runtime state or make dispatch decisions.
 - For a new command, create the `investigation` and `analyst` research tasks first.
 - Only after a research completion notification arrives may task_author read `result_artifact_path` and break the work down into implementation tasks.
-- When implementation completion arrives, create the `tester` test execution task.
-- When the test execution result arrives, create the `reviewer` final review task.
-- When `requestchange` arrives, send it back as rework.
+- After the implementation tasks are created, dispatcher runs the `tester` / overall review / rework loop.
 
 ## Highest Priority Restrictions
 
@@ -41,8 +39,6 @@ cat <AGENT_COMM_ROOT>/.runtime/commands/command.yaml
 <AGENT_COMM_ROOT>/scripts/write-task.sh --type investigation --persona investigation --title "<title>" --description "<description>" --result-artifact-path "<path>"
 <AGENT_COMM_ROOT>/scripts/write-task.sh --type analyst --persona analyst --title "<title>" --description "<description>" --result-artifact-path "<path>"
 <AGENT_COMM_ROOT>/scripts/write-task.sh --type implementation --persona implementer --title "<title>" --description "<description>" --write-file <path>
-<AGENT_COMM_ROOT>/scripts/write-task.sh --type implementation --persona tester --title "<title>" --description "<test execution>" --write-file <path>
-<AGENT_COMM_ROOT>/scripts/write-task.sh --type review --persona reviewer --title "<title>" --description "<review>" --write-file <path>
 ```
 
 ## Persona Guidance
@@ -50,17 +46,15 @@ cat <AGENT_COMM_ROOT>/.runtime/commands/command.yaml
 - `implementer`: implementation and fixes
 - `investigation`: fact finding, impact checks, reproductions
 - `analyst`: requirements / design / implementation gap analysis
-- `tester`: test execution tasks
-- `reviewer`: final review tasks
 - Only use personas that exist in the role manifest.
 
 ## Task Design Rules
 
 - `investigation` / `analyst` must have `result_artifact_path`.
-- `implementation` / `review` must have `write_files`.
+- `implementation` must have `write_files`.
 - For a fresh command, run `update-command-status.sh --status inflight`, then create exactly one `investigation` task and one `analyst` task first.
 - After only one research task completes, keep waiting for the other one. Implementation begins only after both artifacts are available.
-- `tester` is the dedicated test execution stage and `reviewer` is only for the final review stage.
+- Dispatcher creates the `tester`, `reviewer`, and aggregated `rework` tasks. task_author must not create them.
 - `depends_on` must refer to real tasks and must never create cycles.
 - Do not schedule concurrently running tasks with conflicting `write_files`.
 - Break tasks down so they finish quickly.

@@ -8,6 +8,7 @@ source "${SCRIPT_DIR}/agent-comm-common.sh"
 
 SWEEP_INTERVAL_SECONDS="${SWEEP_INTERVAL_SECONDS:-2}"
 TMUX_SNAPSHOT_INTERVAL_SECONDS="${TMUX_SNAPSHOT_INTERVAL_SECONDS:-5}"
+PRE_REVIEW_TEST_GATE_TASK_PREFIX="${PRE_REVIEW_TEST_GATE_TASK_PREFIX:-pre_review_test_gate_}"
 
 QUESTION_NOTIFY_STATE_FILE="${STATUS_DIR}/question_notify_state.txt"
 QUESTION_RESUME_STATE_FILE="${STATUS_DIR}/question_resume_state.txt"
@@ -45,6 +46,7 @@ read_review_cycle_state() {
     REVIEW_CYCLE_ACTIVE="${REVIEW_CYCLE_ACTIVE:-0}"
     REVIEW_TARGET_SIGNATURE="${REVIEW_TARGET_SIGNATURE:-}"
     REVIEW_LAST_APPROVED_SIGNATURE="${REVIEW_LAST_APPROVED_SIGNATURE:-}"
+    REVIEW_CYCLE_STARTED_AT_EPOCH="${REVIEW_CYCLE_STARTED_AT_EPOCH:-0}"
 }
 
 save_review_cycle_state() {
@@ -55,6 +57,7 @@ save_review_cycle_state() {
         echo "REVIEW_CYCLE_ACTIVE=${REVIEW_CYCLE_ACTIVE}"
         echo "REVIEW_TARGET_SIGNATURE=\"${REVIEW_TARGET_SIGNATURE}\""
         echo "REVIEW_LAST_APPROVED_SIGNATURE=\"${REVIEW_LAST_APPROVED_SIGNATURE}\""
+        echo "REVIEW_CYCLE_STARTED_AT_EPOCH=${REVIEW_CYCLE_STARTED_AT_EPOCH}"
     } > "$tmp_file"
     ac_atomic_write_from_tmp "$tmp_file" "$REVIEW_CYCLE_STATE_FILE"
 }
@@ -280,6 +283,162 @@ has_unnotified_research_results_for_command() {
     return 1
 }
 
+is_pre_review_test_gate_task_id() {
+    local task_id="$1"
+    [[ "$task_id" == "${PRE_REVIEW_TEST_GATE_TASK_PREFIX}"* ]]
+}
+
+is_primary_task_file() {
+    local task_file="$1"
+    local task_id task_type persona
+
+    [ -f "$task_file" ] || return 1
+
+    task_type=$(ac_read_yaml_scalar "$task_file" "type")
+    persona=$(ac_read_yaml_scalar "$task_file" "persona")
+    task_id=$(ac_read_yaml_scalar "$task_file" "id")
+
+    if is_research_task_type "$task_type"; then
+        return 1
+    fi
+
+    case "$task_type" in
+        implementation|rework) ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    if [ "$persona" = "tester" ]; then
+        return 1
+    fi
+
+    if is_pre_review_test_gate_task_id "$task_id"; then
+        return 1
+    fi
+
+    return 0
+}
+
+has_active_implementation_tasks_for_command() {
+    local target_command_id="$1"
+    local task_file command_id
+
+    [ -z "$target_command_id" ] && return 1
+
+    for task_file in "$TASK_PENDING_DIR"/*.yaml "$TASK_INFLIGHT_DIR"/*.yaml "$TASK_BLOCKED_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        if ! is_primary_task_file "$task_file"; then
+            continue
+        fi
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        if [ "$command_id" = "$target_command_id" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+has_done_primary_tasks_for_command() {
+    local target_command_id="$1"
+    local task_file command_id
+
+    [ -z "$target_command_id" ] && return 1
+
+    for task_file in "$TASK_DONE_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        if ! is_primary_task_file "$task_file"; then
+            continue
+        fi
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        if [ "$command_id" = "$target_command_id" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+collect_done_primary_task_ids_for_command() {
+    local target_command_id="$1"
+    local task_file task_id command_id
+
+    [ -z "$target_command_id" ] && return 0
+
+    for task_file in $(find "$TASK_DONE_DIR" -maxdepth 1 -type f -name '*.yaml' | sort); do
+        [ -f "$task_file" ] || continue
+        if ! is_primary_task_file "$task_file"; then
+            continue
+        fi
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        [ "$command_id" = "$target_command_id" ] || continue
+        task_id=$(ac_read_yaml_scalar "$task_file" "id")
+        [ -n "$task_id" ] && printf '%s\n' "$task_id"
+    done
+}
+
+collect_done_primary_write_files_for_command() {
+    local target_command_id="$1"
+    local task_file command_id write_file
+
+    [ -z "$target_command_id" ] && return 0
+
+    for task_file in $(find "$TASK_DONE_DIR" -maxdepth 1 -type f -name '*.yaml' | sort); do
+        [ -f "$task_file" ] || continue
+        if ! is_primary_task_file "$task_file"; then
+            continue
+        fi
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        [ "$command_id" = "$target_command_id" ] || continue
+        while IFS= read -r write_file; do
+            write_file=$(ac_trim "$write_file")
+            [ -n "$write_file" ] || continue
+            printf '%s\n' "$write_file"
+        done < <(ac_read_yaml_list "$task_file" "write_files")
+    done | awk '!seen[$0]++'
+}
+
+build_done_signature_for_command() {
+    local target_command_id="$1"
+    local task_file task_id completed_at command_id payload=""
+
+    [ -z "$target_command_id" ] && return 0
+
+    for task_file in $(find "$TASK_DONE_DIR" -maxdepth 1 -type f -name '*.yaml' | sort); do
+        [ -f "$task_file" ] || continue
+        if ! is_primary_task_file "$task_file"; then
+            continue
+        fi
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        [ "$command_id" = "$target_command_id" ] || continue
+        task_id=$(ac_read_yaml_scalar "$task_file" "id")
+        [ -n "$task_id" ] || continue
+        completed_at=$(ac_read_yaml_scalar "$task_file" "completed_at")
+        payload+="${task_id}:${completed_at};"
+    done
+
+    if [ -z "$payload" ]; then
+        printf '\n'
+        return 0
+    fi
+
+    printf '%s' "$payload" | sha1sum | awk '{print $1}'
+}
+
+pre_review_test_gate_task_id() {
+    local done_signature="$1"
+    printf '%s%s_19700101_000000\n' "$PRE_REVIEW_TEST_GATE_TASK_PREFIX" "$done_signature"
+}
+
+find_pre_review_test_gate_task_file() {
+    local done_signature="$1"
+    local task_id
+
+    task_id=$(pre_review_test_gate_task_id "$done_signature")
+    ac_find_task_file_by_id "$task_id"
+}
+
 notify_task_author_research_complete() {
     local task_file task_id task_type artifact_path summary_lines=""
     local -a pending_notify_ids=()
@@ -315,6 +474,236 @@ $(ac_render_report_research_summary_message "${summary_lines%$'\n'}")"
     for task_id in "${pending_notify_ids[@]}"; do
         set_add_line "$RESEARCH_NOTIFY_STATE_FILE" "$task_id"
     done
+}
+
+ensure_pre_review_test_gate_passed() {
+    local target_command_id="$1"
+    local done_signature="$2"
+    local task_id task_file task_state task_result short_sig description dep_id write_file
+    local -a depends_args=()
+    local -a write_files=()
+    local -a write_args=()
+
+    [ -n "$target_command_id" ] || return 1
+    [ -n "$done_signature" ] || return 1
+
+    task_id=$(pre_review_test_gate_task_id "$done_signature")
+    if task_file=$(find_pre_review_test_gate_task_file "$done_signature" 2>/dev/null); then
+        task_state=$(ac_task_state_from_path "$task_file")
+        task_result=$(ac_read_yaml_scalar "$task_file" "result")
+        if [ "$task_state" = "done" ] && [ "$task_result" = "success" ]; then
+            return 0
+        fi
+        return 1
+    fi
+
+    mapfile -t write_files < <(collect_done_primary_write_files_for_command "$target_command_id")
+    [ "${#write_files[@]}" -gt 0 ] || return 1
+    for write_file in "${write_files[@]}"; do
+        write_args+=(--write-file "$write_file")
+    done
+
+    while IFS= read -r dep_id; do
+        [ -n "$dep_id" ] || continue
+        depends_args+=(--depends-on "$dep_id")
+    done < <(collect_done_primary_task_ids_for_command "$target_command_id")
+
+    short_sig="${done_signature:0:8}"
+    description="全体レビュー前のテストゲートです。現在の実装差分に対してテストを実行し、失敗が今回変更に起因する場合は修正して再実行してください。"$'\n\n'
+    description+="完了条件:"$'\n'
+    description+="- 必要なテストを実行し、結果を summary / details に残すこと"$'\n'
+    description+="- 今回変更に起因する失敗があれば修正まで完了させること"$'\n'
+    description+="- 不明点があれば推測せず create-question.sh を使うこと"
+
+    "${SCRIPT_DIR}/write-task.sh" \
+        --id "$task_id" \
+        --type implementation \
+        --command-id "$target_command_id" \
+        --persona tester \
+        --title "プレレビュー テストゲート (${short_sig})" \
+        --description "$description" \
+        "${depends_args[@]}" \
+        "${write_args[@]}" >/dev/null
+
+    ac_log "🧪 pre-review test gate created: ${task_id}"
+    return 1
+}
+
+requeue_blocked_pre_review_test_gate_tasks() {
+    local task_file task_id blocked_reason now_iso destination
+
+    for task_file in "$TASK_BLOCKED_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_id=$(ac_read_yaml_scalar "$task_file" "id")
+        if ! is_pre_review_test_gate_task_id "$task_id"; then
+            continue
+        fi
+
+        blocked_reason=$(ac_read_yaml_scalar "$task_file" "blocked_reason")
+        if [[ "$blocked_reason" == question:* ]]; then
+            continue
+        fi
+
+        now_iso=$(ac_now_iso)
+        ac_set_yaml_scalar "$task_file" "status" "pending"
+        ac_set_yaml_scalar "$task_file" "result" ""
+        ac_set_yaml_scalar "$task_file" "blocked_reason" ""
+        ac_set_yaml_scalar "$task_file" "assigned_to" ""
+        ac_set_yaml_scalar "$task_file" "updated_at" "$now_iso"
+
+        destination="${TASK_PENDING_DIR}/$(basename "$task_file")"
+        mv "$task_file" "$destination"
+        ac_log "♻️ pre-review test gate requeued: ${task_id}"
+    done
+}
+
+mark_command_done_after_review_approve() {
+    local command_id="$1"
+    local cycle_id="$2"
+    local command_file current_command_id current_status now_iso
+
+    [ -n "$command_id" ] || return 0
+
+    command_file="${COMMANDS_DIR}/command.yaml"
+    [ -f "$command_file" ] || return 0
+
+    current_command_id=$(ac_read_yaml_scalar "$command_file" "id")
+    [ -n "$current_command_id" ] || return 0
+    [ "$current_command_id" = "$command_id" ] || return 0
+
+    current_status=$(ac_read_yaml_scalar "$command_file" "status")
+    [ "$current_status" = "inflight" ] || return 0
+
+    now_iso=$(ac_now_iso)
+    ac_set_yaml_scalar "$command_file" "status" "done"
+    ac_set_yaml_scalar "$command_file" "updated_at" "$now_iso"
+    ac_log "✅ command marked done after review approval: ${command_id} (cycle=${cycle_id})"
+}
+
+create_aggregated_rework_task() {
+    local cycle_id="$1"
+    local command_id="$2"
+    local note_path="$3"
+    shift 3 || true
+    local -a depends_args=("$@")
+    local task_id task_file description
+
+    [ -n "$command_id" ] || command_id="$(ac_read_yaml_scalar "${COMMANDS_DIR}/command.yaml" "id")"
+    [ -n "$command_id" ] || return 1
+
+    task_id="review_cycle${cycle_id}_rework_$(date '+%Y%m%d_%H%M%S')"
+    description="全体レビュー cycle ${cycle_id} で requestchange が出ました。"$'\n'
+    if [ -n "$note_path" ]; then
+        description+="rework_note_path を確認して全指摘を反映してください。"$'\n'
+    fi
+    description+="完了後は dispatcher が再度 tester と overall review を回します。"
+
+    "${SCRIPT_DIR}/write-task.sh" \
+        --id "$task_id" \
+        --type rework \
+        --command-id "$command_id" \
+        --persona implementer \
+        --title "レビュー指摘対応 (cycle ${cycle_id})" \
+        --description "$description" \
+        "${depends_args[@]}" >/dev/null
+
+    task_file=$(ac_find_task_file_by_id "$task_id")
+    if [ -n "$note_path" ]; then
+        ac_set_yaml_scalar "$task_file" "rework_note_path" "$note_path"
+    fi
+
+    ac_log "🧩 aggregated rework task created: ${task_id}"
+}
+
+generate_review_tasks_if_needed() {
+    local command_id command_status done_signature cycle_id short_sig parent_id description dep_id now_epoch parent_file write_file
+    local -a depends_args=()
+    local -a write_files=()
+    local -a write_args=()
+
+    command_id=$(ac_read_yaml_scalar "${COMMANDS_DIR}/command.yaml" "id")
+    [ -n "$command_id" ] || return 0
+
+    command_status=$(ac_read_yaml_scalar "${COMMANDS_DIR}/command.yaml" "status")
+    [ "$command_status" = "inflight" ] || return 0
+
+    read_review_cycle_state
+    if [ "$REVIEW_CYCLE_ACTIVE" -eq 1 ]; then
+        return 0
+    fi
+
+    if has_active_research_tasks_for_command "$command_id"; then
+        return 0
+    fi
+
+    if has_unnotified_research_results_for_command "$command_id"; then
+        return 0
+    fi
+
+    if has_active_implementation_tasks_for_command "$command_id"; then
+        return 0
+    fi
+
+    if ! has_done_primary_tasks_for_command "$command_id"; then
+        return 0
+    fi
+
+    done_signature=$(build_done_signature_for_command "$command_id")
+    [ -n "$done_signature" ] || return 0
+
+    if [ "$done_signature" = "$REVIEW_LAST_APPROVED_SIGNATURE" ]; then
+        return 0
+    fi
+
+    if has_active_reviews_for_command "$command_id"; then
+        return 0
+    fi
+
+    if ! ensure_pre_review_test_gate_passed "$command_id" "$done_signature"; then
+        return 0
+    fi
+
+    mapfile -t write_files < <(collect_done_primary_write_files_for_command "$command_id")
+    [ "${#write_files[@]}" -gt 0 ] || return 0
+    for write_file in "${write_files[@]}"; do
+        write_args+=(--write-file "$write_file")
+    done
+
+    while IFS= read -r dep_id; do
+        [ -n "$dep_id" ] || continue
+        depends_args+=(--depends-on "$dep_id")
+    done < <(collect_done_primary_task_ids_for_command "$command_id")
+
+    cycle_id=$((REVIEW_CYCLE_ID + 1))
+    short_sig="${done_signature:0:8}"
+    parent_id="review_cycle${cycle_id}"
+    description="全体差分をレビューし、approve か requestchange を判定してください。"$'\n'
+    description+="requestchange の場合は summary / details / rework_targets / findings を正しく記載してください。"$'\n'
+    description+="requestchange は dispatcher が集約して再作業を再配布します。"
+
+    parent_file="${REVIEW_PENDING_DIR}/${parent_id}.yaml"
+    "${SCRIPT_DIR}/write-task.sh" \
+        --id "$parent_id" \
+        --type review \
+        --command-id "$command_id" \
+        --persona reviewer \
+        --title "全体レビュー cycle ${cycle_id} (${short_sig})" \
+        --description "$description" \
+        "${depends_args[@]}" \
+        "${write_args[@]}" >/dev/null
+
+    now_epoch=$(ac_now_epoch)
+    REVIEW_CYCLE_ID="$cycle_id"
+    REVIEW_CYCLE_ACTIVE=1
+    REVIEW_TARGET_SIGNATURE="$done_signature"
+    REVIEW_CYCLE_STARTED_AT_EPOCH="$now_epoch"
+    save_review_cycle_state
+
+    if [ -f "$parent_file" ]; then
+        ac_set_yaml_scalar "$parent_file" "review_cycle_id" "$cycle_id"
+    fi
+
+    ac_log "✅ review cycle created: cycle=${cycle_id}"
 }
 
 worker_state_for_agent() {
@@ -468,13 +857,17 @@ expand_pending_review_groups() {
         mapfile -t reviewer_ids < <(ac_section_agent_ids reviewer)
         [ "${#reviewer_ids[@]}" -gt 0 ] || continue
 
-        read_review_cycle_state
-        cycle_id=$((REVIEW_CYCLE_ID + 1))
-        REVIEW_CYCLE_ID="$cycle_id"
-        REVIEW_CYCLE_ACTIVE=1
         parent_id="$(ac_read_yaml_scalar "$parent_file" "id")"
-        REVIEW_TARGET_SIGNATURE="$parent_id"
-        save_review_cycle_state
+        cycle_id="$(ac_read_yaml_scalar "$parent_file" "review_cycle_id")"
+        if ! [[ "$cycle_id" =~ ^[0-9]+$ ]] || [ "$cycle_id" -le 0 ]; then
+            read_review_cycle_state
+            cycle_id=$((REVIEW_CYCLE_ID + 1))
+            REVIEW_CYCLE_ID="$cycle_id"
+            REVIEW_CYCLE_ACTIVE=1
+            REVIEW_TARGET_SIGNATURE="$parent_id"
+            REVIEW_CYCLE_STARTED_AT_EPOCH="$(ac_now_epoch)"
+            save_review_cycle_state
+        fi
 
         now_iso="$(ac_now_iso)"
         count="${#reviewer_ids[@]}"
@@ -527,6 +920,9 @@ finalize_review_groups() {
     local all_ready any_requestchange aggregate_body
     local findings_items=()
     local rework_targets=()
+    local -a review_depends=()
+    local -a target_depends=()
+    local -A seen_targets=()
 
     while IFS= read -r parent_file; do
         [ -f "$parent_file" ] || continue
@@ -542,6 +938,9 @@ finalize_review_groups() {
         any_requestchange=0
         aggregate_body=""
         command_id="$(ac_read_yaml_scalar "$parent_file" "command_id")"
+        review_depends=()
+        target_depends=()
+        seen_targets=()
 
         for reviewer_id in "${reviewer_ids[@]}"; do
             child_id="${parent_id}__${reviewer_id}"
@@ -565,6 +964,7 @@ finalize_review_groups() {
             review_decision="$(ac_read_yaml_scalar "$report_file" "review_decision")"
             result="$(ac_read_yaml_scalar "$report_file" "result")"
             [ -n "$command_id" ] || command_id="$(ac_read_yaml_scalar "$report_file" "command_id")"
+            review_depends+=(--depends-on "$child_id")
 
             if [ "$review_decision" = "requestchange" ]; then
                 any_requestchange=1
@@ -592,6 +992,14 @@ finalize_review_groups() {
             aggregate_body+="review_decision: ${review_decision}"$'\n'
             if [ "${#rework_targets[@]}" -gt 0 ]; then
                 aggregate_body+="rework_targets: $(IFS=', '; printf '%s' "${rework_targets[*]}")"$'\n'
+                for target in "${rework_targets[@]}"; do
+                    target="$(ac_trim "$target")"
+                    [ -n "$target" ] || continue
+                    if [ -z "${seen_targets[$target]+x}" ] && ac_find_task_file_by_id "$target" >/dev/null 2>&1; then
+                        target_depends+=(--depends-on "$target")
+                        seen_targets["$target"]=1
+                    fi
+                done
             fi
             aggregate_body+="summary:"$'\n'"${summary:-"(empty)"}"$'\n'
             aggregate_body+="details:"$'\n'"${details:-"(empty)"}"$'\n'
@@ -610,6 +1018,10 @@ finalize_review_groups() {
 
         if [ "$any_requestchange" -eq 1 ]; then
             note_path="$(create_review_group_note "$parent_id" "$aggregate_body")"
+            if ! create_aggregated_rework_task "$cycle_id" "$command_id" "$note_path" "${review_depends[@]}" "${target_depends[@]}"; then
+                ac_log "❌ aggregated rework task creation failed: cycle=${cycle_id}"
+                continue
+            fi
             ac_set_yaml_scalar "$parent_file" "rework_note_path" "$note_path"
             ac_set_yaml_scalar "$parent_file" "result" "failure"
             ac_set_yaml_scalar "$parent_file" "review_decision" "requestchange"
@@ -625,13 +1037,14 @@ finalize_review_groups() {
 
         read_review_cycle_state
         REVIEW_CYCLE_ACTIVE=0
-        REVIEW_TARGET_SIGNATURE=""
         if [ "$any_requestchange" -eq 0 ]; then
-            REVIEW_LAST_APPROVED_SIGNATURE="$parent_id"
+            REVIEW_LAST_APPROVED_SIGNATURE="$REVIEW_TARGET_SIGNATURE"
+            mark_command_done_after_review_approve "$command_id" "$cycle_id"
         fi
+        REVIEW_TARGET_SIGNATURE=""
+        REVIEW_CYCLE_STARTED_AT_EPOCH=0
         save_review_cycle_state
 
-        ac_send_direct_message task_author "$(ac_render_review_group_update_message "$parent_id" "$([ "$any_requestchange" -eq 1 ] && printf 'failure' || printf 'success')" "$([ "$any_requestchange" -eq 1 ] && printf 'requestchange' || printf 'approve')" "$command_id" "$reviewer_count" "$note_path")"
         ac_log "✅ review group finalized: ${parent_id}"
     done < <(find "$REVIEW_INFLIGHT_DIR" -maxdepth 1 -type f -name '*.yaml' | sort)
 }
@@ -827,23 +1240,6 @@ process_report_notifications() {
         review_decision=$(ac_read_yaml_scalar "$report_file" "review_decision")
         review_parent_id=$(ac_read_yaml_scalar "$report_file" "review_parent_id")
 
-        case "$persona" in
-            investigation|analyst)
-                :
-                ;;
-            tester)
-                ac_send_direct_message task_author "$(ac_render_report_tester_update_message "$task_id" "$result" "$command_id")"
-                ;;
-            reviewer)
-                if [ -z "$review_parent_id" ]; then
-                    ac_send_direct_message task_author "$(ac_render_report_reviewer_update_message "$task_id" "$result" "$review_decision" "$command_id")"
-                fi
-                ;;
-            *)
-                ac_send_direct_message task_author "$(ac_render_report_generic_complete_message "$task_id" "$persona" "$task_type" "$result" "$command_id")"
-                ;;
-        esac
-
         set_add_line "$REPORT_NOTIFY_STATE_FILE" "$key"
     done
 }
@@ -906,9 +1302,11 @@ main_loop() {
         process_command_queue
         process_open_questions_notify
         resume_tasks_from_answered_questions
-        expand_pending_review_groups
         process_report_notifications
         notify_task_author_research_complete
+        requeue_blocked_pre_review_test_gate_tasks
+        generate_review_tasks_if_needed
+        expand_pending_review_groups
         finalize_review_groups
         dispatch_directory "$TASK_PENDING_DIR" "$TASK_INFLIGHT_DIR"
         dispatch_directory "$REVIEW_PENDING_DIR" "$REVIEW_INFLIGHT_DIR"

@@ -18,6 +18,6 @@ required: true
   1. coordinator creates the command
   2. task_author creates `investigation` / `analyst` tasks first
   3. task_author reads the research output and splits implementation tasks
-  4. after implementation, `tester` runs the test execution step
-  5. after that passes, `reviewer` performs the final review
-  6. `requestchange` goes back to task_author as rework
+  4. after implementation, dispatcher starts `tester`
+  5. after tester passes, dispatcher starts the overall `reviewer` cycle
+  6. `requestchange` is aggregated by dispatcher, rework is redistributed, and tester / review repeat

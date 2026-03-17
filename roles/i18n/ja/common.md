@@ -18,6 +18,6 @@ required: true
   1. coordinator が command を投入する
   2. task_author が `investigation` / `analyst` を先に作る
   3. 調査成果を読んで実装タスクへ分解する
-  4. 実装後に `tester` がテスト実行を担当する
-  5. 通過後に `reviewer` が全体レビューする
-  6. `requestchange` は task_author が再作業へ戻す
+  4. dispatcher が実装完了後に `tester` を起動する
+  5. tester 通過後に dispatcher が `reviewer` 全体レビューを開始する
+  6. `requestchange` は dispatcher が集約して rework を再配布し、tester / review を繰り返す

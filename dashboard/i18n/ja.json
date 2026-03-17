@@ -142,6 +142,7 @@
   "chip.queued": "キュー待ち",
   "chip.blocked": "停止中",
   "chip.done": "完了",
+  "chip.failure": "失敗",
   "chip.attention": "要確認",
   "chip.requestchange": "差し戻し",
   "chip.rework": "再作業",

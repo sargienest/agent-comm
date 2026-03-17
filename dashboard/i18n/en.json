@@ -142,6 +142,7 @@
   "chip.queued": "queued",
   "chip.blocked": "blocked",
   "chip.done": "done",
+  "chip.failure": "failure",
   "chip.attention": "attention",
   "chip.requestchange": "requestchange",
   "chip.rework": "rework",

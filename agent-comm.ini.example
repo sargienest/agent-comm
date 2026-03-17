@@ -1,4 +1,5 @@
 [runtime]
+# Set this to the project/worktree the agents should operate in.
 agent_working_dir = ../
 language = en
 codex_home = ~/.codex

@@ -15,9 +15,7 @@ required: true
 - dispatcher が配布と集計を担当する。task_author は監視や配布判断をしない。
 - 新しい command では、まず `investigation` と `analyst` の調査タスクを作成する。
 - 調査完了通知を受けた場合のみ `result_artifact_path` を読み、次の実装タスクへ分解する。
-- 実装完了通知を受けたら `tester` のテスト実行タスクを作る。
-- テスト実行結果を受けたら `reviewer` の全体レビュータスクを作る。
-- `requestchange` を受けたら再作業タスクへ戻す。
+- 実装タスクまで作成したら、その後の `tester` / overall review / rework loop は dispatcher が進める。
 
 ## 最重要禁止事項（再発防止）
 
@@ -41,8 +39,6 @@ cat <AGENT_COMM_ROOT>/.runtime/commands/command.yaml
 <AGENT_COMM_ROOT>/scripts/write-task.sh --type investigation --persona investigation --title "<title>" --description "<description>" --result-artifact-path "<path>"
 <AGENT_COMM_ROOT>/scripts/write-task.sh --type analyst --persona analyst --title "<title>" --description "<description>" --result-artifact-path "<path>"
 <AGENT_COMM_ROOT>/scripts/write-task.sh --type implementation --persona implementer --title "<title>" --description "<description>" --write-file <path>
-<AGENT_COMM_ROOT>/scripts/write-task.sh --type implementation --persona tester --title "<title>" --description "<test execution>" --write-file <path>
-<AGENT_COMM_ROOT>/scripts/write-task.sh --type review --persona reviewer --title "<title>" --description "<review>" --write-file <path>
 ```
 
 ## persona選定目安
@@ -50,17 +46,15 @@ cat <AGENT_COMM_ROOT>/.runtime/commands/command.yaml
 - `implementer`: 実装・修正タスク
 - `investigation`: 事実収集・影響調査・再現確認
 - `analyst`: 要件 / 設計 / 実装のギャップ分析
-- `tester`: テスト実行タスク
-- `reviewer`: 全体レビュータスク
 - persona は role manifest に存在するものだけを使う。
 
 ## タスク設計ルール
 
 - `investigation` / `analyst` は `result_artifact_path` を必須にする。
-- `implementation` / `review` は `write_files` を必須にする。
+- `implementation` は `write_files` を必須にする。
 - 新しい command では、`update-command-status.sh --status inflight` の後に `investigation` task と `analyst` task を 1 本ずつ作成する。
 - 調査が片方だけ完了した時点では待機を続け、両方の成果物がそろってから implementation へ進む。
-- `tester` はテスト実行専用段階、`reviewer` は全体レビュー専用段階として扱う。
+- `tester` / `reviewer` / `rework` の task は dispatcher が生成する。task_author は作成しない。
 - `depends_on` は実在 task のみを参照し、循環依存を作らない。
 - 衝突する `write_files` を同時実行タスクに入れない。
 - タスクは効率よく分解して早く終わる形にする。
