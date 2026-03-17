@@ -371,6 +371,21 @@ class SnapshotBuilder:
         self.config = read_ini(repo_root)
         self.agent_definitions = read_agent_definitions(repo_root)
 
+    def tmux_session_running(self, session_name: str) -> bool:
+        session = str(session_name or "").strip()
+        if not session:
+            return False
+        try:
+            result = subprocess.run(
+                ["tmux", "has-session", "-t", session],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            return False
+        return result.returncode == 0
+
     def latest_mtime_iso(self) -> str | None:
         latest = 0.0
         if not self.runtime_root.is_dir():
@@ -426,18 +441,26 @@ class SnapshotBuilder:
     def build_runtime(self) -> dict[str, Any]:
         current = parse_yaml_file(self.runtime_root / "status" / "current.yaml")
         review_cycle = read_simple_env(self.runtime_root / "runtime" / "review_cycle_state.env")
+        session_name = str(current.get("session", self.config["session_name"]))
+        session_running = self.tmux_session_running(session_name)
+        agent_meta: dict[str, dict[str, str]] = {}
         workers_map = current.get("workers", {})
         if not isinstance(workers_map, dict):
             workers_map = {}
 
         workers: list[dict[str, str]] = []
         for definition in self.agent_definitions:
+            agent_id = str(definition["id"])
+            agent_meta[agent_id] = {
+                "runtime": str(definition.get("runtime", "")),
+                "model": str(definition.get("model", "")),
+            }
             if definition.get("kind") != "worker":
                 continue
-            worker_id = str(definition["id"])
+            worker_id = agent_id
             snapshot = parse_yaml_file(self.runtime_root / "status" / "tmux" / f"{worker_id}.yaml")
             state = str(workers_map.get(worker_id, "idle"))
-            if snapshot and not normalize_bool(snapshot.get("running", "0")):
+            if not session_running or (snapshot and not normalize_bool(snapshot.get("running", "0"))):
                 state = "offline"
             workers.append(
                 {
@@ -454,16 +477,17 @@ class SnapshotBuilder:
         def resolved_state(agent_id: str, fallback_key: str) -> str:
             fallback = str(current.get(fallback_key, "unknown"))
             snapshot = parse_yaml_file(self.runtime_root / "status" / "tmux" / f"{agent_id}.yaml")
-            if snapshot and not normalize_bool(snapshot.get("running", "0")):
+            if not session_running or (snapshot and not normalize_bool(snapshot.get("running", "0"))):
                 return "offline"
             return fallback
 
         return {
-            "session": current.get("session", self.config["session_name"]),
+            "session": session_name,
             "started_at": current.get("started_at", ""),
             "coordinator": resolved_state("coordinator", "coordinator"),
             "task_author": resolved_state("task_author", "task_author"),
             "dispatcher": resolved_state("dispatcher", "dispatcher"),
+            "agent_meta": agent_meta,
             "workers": workers,
             "review_cycle": {
                 "cycle_id": review_cycle.get("REVIEW_CYCLE_ID", ""),
@@ -594,6 +618,8 @@ class SnapshotBuilder:
     def build_tmux_snapshot(self) -> dict[str, Any]:
         agents: list[dict[str, Any]] = []
         runtime = self.build_runtime()
+        session_name = str(runtime.get("session", self.config["session_name"]))
+        session_running = self.tmux_session_running(session_name)
         state_map = {
             "coordinator": runtime["coordinator"],
             "task_author": runtime["task_author"],
@@ -606,9 +632,14 @@ class SnapshotBuilder:
             agent_id = str(definition["id"])
             label = str(definition["label"])
             snapshot = parse_yaml_file(self.runtime_root / "status" / "tmux" / f"{agent_id}.yaml")
+            running = normalize_bool(snapshot.get("running", "0"))
             history = self.sanitize_history(str(snapshot.get("history", "")))
             history_code = str(snapshot.get("history_code", "")).strip()
-            if not history_code and history == "__AC_TMUX_UNAVAILABLE__":
+            if not session_running or not snapshot or not running:
+                running = False
+                history = ""
+                history_code = "tmux_unavailable"
+            elif not history_code and history == "__AC_TMUX_UNAVAILABLE__":
                 history_code = "tmux_unavailable"
                 history = ""
             agents.append(
@@ -622,7 +653,7 @@ class SnapshotBuilder:
                     "persona": str(definition.get("persona", "")),
                     "tmux_target": snapshot.get("tmux_target", ""),
                     "state": state_map.get(agent_id, "unknown"),
-                    "running": normalize_bool(snapshot.get("running", "0")),
+                    "running": running,
                     "history_code": history_code,
                     "history": history,
                     "captured_at": snapshot.get("captured_at", ""),

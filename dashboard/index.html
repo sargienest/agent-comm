@@ -1857,7 +1857,6 @@
                                         <th data-i18n="history.table.task">Task</th>
                                         <th data-i18n="history.table.assignee">担当</th>
                                         <th data-i18n="history.table.status">Status</th>
-                                        <th data-i18n="history.table.result">Result</th>
                                         <th data-i18n="history.table.updated">Updated</th>
                                     </tr>
                                 </thead>
@@ -2559,7 +2558,6 @@
 
             taskDetailChips.innerHTML = '';
             taskDetailChips.appendChild(createChip(item.status));
-            taskDetailChips.appendChild(createChip(item.result || 'unknown'));
             if (item.assigned_to) {
                 taskDetailChips.appendChild(createChip(item.assigned_to));
             }
@@ -3213,11 +3211,18 @@
             missingRootWarning.hidden = Boolean(snapshot.root_exists);
         }
 
+        function formatAgentRuntimeModel(runtime, model) {
+            return [toText(runtime, ''), toText(model, '')]
+                .filter((value) => value !== '')
+                .join(' ');
+        }
+
         function renderWorkers(snapshot) {
             const workersNode = document.getElementById('workers');
             const workers = (snapshot.runtime && Array.isArray(snapshot.runtime.workers)) ?
                 snapshot.runtime.workers :
                 [];
+            const agentMeta = snapshot.runtime?.agent_meta || {};
             const previousWorkerStateMap = state.workerStateMap;
             const hasPreviousWorkerStates = Object.keys(previousWorkerStateMap).length > 0;
             const nextWorkerStateMap = {};
@@ -3233,6 +3238,8 @@
                 {
                     id: 'task_author',
                     section: 'task_author',
+                    runtime: toText(agentMeta.task_author?.runtime, ''),
+                    model: toText(agentMeta.task_author?.model, ''),
                     state: toText(snapshot.runtime?.task_author, 'unknown'),
                 },
                 ...workers,
@@ -3285,6 +3292,14 @@
                     const strong = document.createElement('strong');
                     strong.textContent = workerId;
                     left.appendChild(strong);
+
+                    const runtimeModel = formatAgentRuntimeModel(worker.runtime, worker.model);
+                    if (runtimeModel !== '') {
+                        const meta = document.createElement('span');
+                        meta.className = 'muted';
+                        meta.textContent = runtimeModel;
+                        left.appendChild(meta);
+                    }
 
                     const right = document.createElement('div');
                     right.className = 'chips';
@@ -3530,6 +3545,32 @@
             renderActiveItems('activeResearchList', researchItems, t('progress.research.empty', {}, '進行中の調査・レビューはありません'));
         }
 
+        function displayEventStatus(event) {
+            const reviewDecision = normalizeToken(event?.review_decision, '');
+            if (reviewDecision !== '') {
+                return reviewDecision;
+            }
+
+            const status = normalizeToken(event?.status, '');
+            const result = normalizeToken(event?.result, '');
+            if (status === 'done') {
+                return 'done';
+            }
+            if (status === 'failure' && result === 'blocked') {
+                return 'blocked';
+            }
+            if (status !== '') {
+                return status;
+            }
+            if (result === 'success') {
+                return 'done';
+            }
+            if (result !== '') {
+                return result;
+            }
+            return 'unknown';
+        }
+
         function renderTimeline(snapshot) {
             const timelineNode = document.getElementById('timeline');
             const events = Array.isArray(snapshot.events) ? [...snapshot.events] : [];
@@ -3553,9 +3594,10 @@
                 }
 
                 for (const [index, event] of events.entries()) {
+                    const eventStatus = displayEventStatus(event);
                     const item = document.createElement('article');
-                    item.className = `timeline-item state-${normalizeToken(event.result, 'unknown')}`;
-                    const signature = `${toText(event.id, '')}|${toText(event.completed_at, '')}|${toText(event.result, '')}`;
+                    item.className = `timeline-item state-${normalizeToken(eventStatus, 'unknown')}`;
+                    const signature = `${toText(event.id, '')}|${toText(event.completed_at, '')}|${eventStatus}`;
                     nextSignatures.add(signature);
                     if (shouldAnimateNewItem && !previousSignatures.has(signature)) {
                         item.classList.add('item-new');
@@ -3567,12 +3609,7 @@
 
                     const chips = document.createElement('div');
                     chips.className = 'chips';
-                    chips.appendChild(createChip(event.status));
-                    chips.appendChild(createChip(event.result));
-
-                    if (event.review_decision) {
-                        chips.appendChild(createChip(event.review_decision));
-                    }
+                    chips.appendChild(createChip(eventStatus));
 
                     const date = document.createElement('span');
                     date.className = 'muted';
@@ -3655,7 +3692,7 @@
             if (rows.length === 0) {
                 const tr = document.createElement('tr');
                 const td = document.createElement('td');
-                td.colSpan = 5;
+                td.colSpan = 4;
                 td.className = 'muted';
                 td.textContent = emptyLabel;
                 tr.appendChild(td);
@@ -3720,9 +3757,6 @@
                 const statusCell = document.createElement('td');
                 statusCell.appendChild(createChip(item.status));
 
-                const resultCell = document.createElement('td');
-                resultCell.appendChild(createChip(item.result || 'unknown'));
-
                 const updatedCell = document.createElement('td');
                 const updatedValue = document.createElement('div');
                 updatedValue.textContent = formatDateTime(item.updated_at || item.completed_at || item.created_at);
@@ -3735,7 +3769,6 @@
                 tr.appendChild(taskCell);
                 tr.appendChild(assigneeCell);
                 tr.appendChild(statusCell);
-                tr.appendChild(resultCell);
                 tr.appendChild(updatedCell);
 
                 tbody.appendChild(tr);
@@ -3764,7 +3797,6 @@
                 const mobileChips = document.createElement('div');
                 mobileChips.className = 'chips';
                 mobileChips.appendChild(createChip(item.status));
-                mobileChips.appendChild(createChip(item.result || 'unknown'));
                 mobileTop.appendChild(mobileChips);
 
                 const mobileMain = document.createElement('div');

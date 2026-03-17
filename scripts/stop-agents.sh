@@ -39,6 +39,37 @@ tmux_session_exists() {
     tmux has-session -t "$session_name" 2>/dev/null
 }
 
+write_offline_runtime_status() {
+    local status_session="$1"
+
+    [ -n "$status_session" ] || status_session="$AC_TMUX_SESSION_NAME"
+
+    {
+        echo "session: \"${status_session}\""
+        echo "stopped_at: \"$(date -Iseconds)\""
+        echo "coordinator: \"offline\""
+        echo "task_author: \"offline\""
+        echo "dispatcher: \"offline\""
+        echo "workers:"
+        while IFS= read -r worker_id; do
+            echo "  ${worker_id}: \"offline\""
+        done < <(ac_worker_ids)
+    } > "${STATUS_DIR}/current.yaml"
+}
+
+write_tmux_unavailable_snapshots() {
+    rm -f "${TMUX_SNAPSHOT_DIR}"/*.yaml 2>/dev/null || true
+
+    ac_capture_tmux_snapshot "coordinator" "${AC_TMUX_SESSION_NAME}:coordinator"
+    ac_capture_tmux_snapshot "task_author" "${AC_TMUX_SESSION_NAME}:task-author"
+    ac_capture_tmux_snapshot "dispatcher" "${AC_TMUX_SESSION_NAME}:dispatcher"
+
+    while IFS= read -r worker_id; do
+        [ -n "$worker_id" ] || continue
+        ac_capture_tmux_snapshot "$worker_id" "$(ac_agent_tmux_target "$worker_id")"
+    done < <(ac_worker_ids)
+}
+
 collect_candidate_sessions() {
     local status_session tmux_target session_name snapshot_file
     local -a candidates=()
@@ -135,7 +166,13 @@ for session_name in "${candidate_sessions[@]}"; do
 done
 
 if [ "${#existing_sessions[@]}" -eq 0 ]; then
-    echo "セッション '${AC_TMUX_SESSION_NAME}' は存在しません。"
+    status_session="$(yaml_scalar_value "${STATUS_DIR}/current.yaml" "session" || true)"
+    write_offline_runtime_status "$status_session"
+    write_tmux_unavailable_snapshots
+    rm -f "$DISPATCHER_PID_FILE" "$DISPATCHER_TOKEN_FILE"
+    pkill -f "${AC_REPO_ROOT}/scripts/watch-reports.sh" >/dev/null 2>&1 || true
+    write_offline_runtime_status "$status_session"
+    echo "セッション '${AC_TMUX_SESSION_NAME}' は存在しません。状態をクリアしました。"
     exit 0
 fi
 
@@ -149,17 +186,7 @@ if [ "${AC_STOP_DETACHED:-0}" != "1" ] && [ -n "${TMUX:-}" ]; then
 fi
 
 status_session="${existing_sessions[0]}"
-{
-    echo "session: \"${status_session}\""
-    echo "stopped_at: \"$(date -Iseconds)\""
-    echo "coordinator: \"stopped\""
-    echo "task_author: \"stopped\""
-    echo "dispatcher: \"stopped\""
-    echo "workers:"
-    while IFS= read -r worker_id; do
-        echo "  ${worker_id}: \"stopped\""
-    done < <(ac_worker_ids)
-} > "${STATUS_DIR}/current.yaml"
+write_offline_runtime_status "$status_session"
 
 for session_name in "${existing_sessions[@]}"; do
     stop_tmux_session "$session_name"
@@ -179,5 +206,8 @@ if [ "${#remaining_sessions[@]}" -gt 0 ]; then
     printf "セッション '%s' の停止に失敗しました。\n" "$(IFS=', '; echo "${remaining_sessions[*]}")" >&2
     exit 1
 fi
+
+write_offline_runtime_status "$status_session"
+write_tmux_unavailable_snapshots
 
 printf "セッション '%s' を停止しました。\n" "$(IFS=', '; echo "${existing_sessions[*]}")"
