@@ -13,6 +13,7 @@ QUESTION_NOTIFY_STATE_FILE="${STATUS_DIR}/question_notify_state.txt"
 QUESTION_RESUME_STATE_FILE="${STATUS_DIR}/question_resume_state.txt"
 COMMAND_NOTIFY_STATE_FILE="${STATUS_DIR}/command_dispatch_state.txt"
 REPORT_NOTIFY_STATE_FILE="${STATUS_DIR}/report_notify_state.txt"
+RESEARCH_NOTIFY_STATE_FILE="${STATUS_DIR}/research_complete_notify_state.txt"
 REVIEW_CYCLE_STATE_FILE="${RUNTIME_DIR}/review_cycle_state.env"
 TMUX_SNAPSHOT_LOOP_PID=""
 
@@ -63,7 +64,12 @@ init_runtime() {
 
     ac_ensure_runtime_dirs
     ac_write_runtime_env
-    touch "$QUESTION_NOTIFY_STATE_FILE" "$QUESTION_RESUME_STATE_FILE" "$COMMAND_NOTIFY_STATE_FILE" "$REPORT_NOTIFY_STATE_FILE"
+    touch \
+        "$QUESTION_NOTIFY_STATE_FILE" \
+        "$QUESTION_RESUME_STATE_FILE" \
+        "$COMMAND_NOTIFY_STATE_FILE" \
+        "$REPORT_NOTIFY_STATE_FILE" \
+        "$RESEARCH_NOTIFY_STATE_FILE"
 
     token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
     [ -n "$token" ] || token="token_${RANDOM}_$(date +%s)"
@@ -75,6 +81,10 @@ init_runtime() {
 
     read_review_cycle_state
     save_review_cycle_state
+
+    if [ ! -s "$RESEARCH_NOTIFY_STATE_FILE" ]; then
+        init_research_notify_state
+    fi
 
     trap cleanup_runtime EXIT INT TERM
 }
@@ -191,17 +201,51 @@ has_active_reviews_for_command() {
     return 1
 }
 
-has_unnotified_research_results() {
-    local report_file persona key
+init_research_notify_state() {
+    local task_file task_type task_id
 
-    for report_file in "$REPORT_EVENTS_DIR"/*.yaml; do
-        [ -f "$report_file" ] || continue
-        persona=$(ac_read_yaml_scalar "$report_file" "persona")
-        if ! is_research_task_type "$persona"; then
+    for task_file in "${TASK_DONE_DIR}"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_type=$(ac_read_yaml_scalar "$task_file" "type")
+        [ "$task_type" != "investigation" ] && [ "$task_type" != "analyst" ] && continue
+        task_id=$(ac_read_yaml_scalar "$task_file" "id")
+        [ -z "$task_id" ] && task_id=$(basename "$task_file" .yaml)
+        [ -z "$task_id" ] && continue
+        set_add_line "$RESEARCH_NOTIFY_STATE_FILE" "$task_id"
+    done
+
+    set_add_line "$RESEARCH_NOTIFY_STATE_FILE" "__research_complete_notify_initialized__"
+}
+
+has_active_research_tasks() {
+    local task_file task_type
+
+    for task_file in "$TASK_PENDING_DIR"/*.yaml "$TASK_INFLIGHT_DIR"/*.yaml "$TASK_BLOCKED_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_type=$(ac_read_yaml_scalar "$task_file" "type")
+        if is_research_task_type "$task_type"; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+has_unnotified_research_results() {
+    local task_file task_id task_type
+
+    for task_file in "$TASK_DONE_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_type=$(ac_read_yaml_scalar "$task_file" "type")
+        if ! is_research_task_type "$task_type"; then
             continue
         fi
-        key="$(basename "$report_file")"
-        if ! set_contains_line "$REPORT_NOTIFY_STATE_FILE" "$key"; then
+
+        task_id=$(ac_read_yaml_scalar "$task_file" "id")
+        [ -z "$task_id" ] && task_id=$(basename "$task_file" .yaml)
+        [ -z "$task_id" ] && continue
+
+        if ! set_contains_line "$RESEARCH_NOTIFY_STATE_FILE" "$task_id"; then
             return 0
         fi
     done
@@ -211,25 +255,66 @@ has_unnotified_research_results() {
 
 has_unnotified_research_results_for_command() {
     local target_command_id="$1"
-    local report_file persona command_id key
+    local task_file task_id task_type command_id
 
     [ -z "$target_command_id" ] && return 1
 
-    for report_file in "$REPORT_EVENTS_DIR"/*.yaml; do
-        [ -f "$report_file" ] || continue
-        persona=$(ac_read_yaml_scalar "$report_file" "persona")
-        if ! is_research_task_type "$persona"; then
+    for task_file in "$TASK_DONE_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_type=$(ac_read_yaml_scalar "$task_file" "type")
+        if ! is_research_task_type "$task_type"; then
             continue
         fi
-        command_id=$(ac_read_yaml_scalar "$report_file" "command_id")
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
         [ "$command_id" = "$target_command_id" ] || continue
-        key="$(basename "$report_file")"
-        if ! set_contains_line "$REPORT_NOTIFY_STATE_FILE" "$key"; then
+
+        task_id=$(ac_read_yaml_scalar "$task_file" "id")
+        [ -z "$task_id" ] && task_id=$(basename "$task_file" .yaml)
+        [ -z "$task_id" ] && continue
+
+        if ! set_contains_line "$RESEARCH_NOTIFY_STATE_FILE" "$task_id"; then
             return 0
         fi
     done
 
     return 1
+}
+
+notify_task_author_research_complete() {
+    local task_file task_id task_type artifact_path summary_lines=""
+    local -a pending_notify_ids=()
+
+    if has_active_research_tasks; then
+        return 0
+    fi
+
+    for task_file in "$TASK_DONE_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        task_type=$(ac_read_yaml_scalar "$task_file" "type")
+        [ "$task_type" != "investigation" ] && [ "$task_type" != "analyst" ] && continue
+
+        task_id=$(ac_read_yaml_scalar "$task_file" "id")
+        [ -z "$task_id" ] && task_id=$(basename "$task_file" .yaml)
+        [ -z "$task_id" ] && continue
+
+        if set_contains_line "$RESEARCH_NOTIFY_STATE_FILE" "$task_id"; then
+            continue
+        fi
+
+        artifact_path=$(ac_read_yaml_scalar "$task_file" "result_artifact_path")
+        [ -z "$artifact_path" ] && artifact_path="$(ac_default_research_result_path "$task_id")"
+        summary_lines+="- ${task_id} (${task_type}) -> ${artifact_path}"$'\n'
+        pending_notify_ids+=("$task_id")
+    done
+
+    [ "${#pending_notify_ids[@]}" -gt 0 ] || return 0
+
+    ac_send_direct_message task_author "${AC_RESET_COMMAND}
+$(ac_render_report_research_summary_message "${summary_lines%$'\n'}")"
+
+    for task_id in "${pending_notify_ids[@]}"; do
+        set_add_line "$RESEARCH_NOTIFY_STATE_FILE" "$task_id"
+    done
 }
 
 worker_state_for_agent() {
@@ -631,24 +716,32 @@ process_send_outbox() {
 }
 
 process_command_queue() {
-    local command_file command_id key command_text
+    local command_file command_id command_status command_text key command_hash command_updated_at dispatch_updated_at
 
     command_file="${COMMANDS_DIR}/command.yaml"
     [ -f "$command_file" ] || return 0
-    [ "$(ac_read_yaml_scalar "$command_file" "status")" = "pending" ] || return 0
+    command_status=$(ac_read_yaml_scalar "$command_file" "status")
+    [ "$command_status" = "pending" ] || return 0
 
     command_id=$(ac_read_yaml_scalar "$command_file" "id")
     [ -n "$command_id" ] || command_id="command_unknown"
-    key="${command_id}|$(ac_read_yaml_scalar "$command_file" "updated_at")"
-    set_contains_line "$COMMAND_NOTIFY_STATE_FILE" "$key" && return 0
 
+    command_updated_at=$(ac_read_yaml_scalar "$command_file" "updated_at")
     command_text=$(ac_read_yaml_block "$command_file" "command")
     [ -n "$command_text" ] || command_text="command.yaml を確認してください。"
+    command_hash=$(printf '%s' "$command_text" | sha1sum | awk '{print $1}')
+    key="${command_id}|${command_updated_at}|${command_hash}"
+    set_contains_line "$COMMAND_NOTIFY_STATE_FILE" "$key" && return 0
 
     ac_send_direct_message task_author "${AC_RESET_COMMAND}
 $(ac_render_command_notify_message "$command_file" "$command_text")"
 
+    dispatch_updated_at=$(ac_now_iso)
+    ac_set_yaml_scalar "$command_file" "status" "inflight"
+    ac_set_yaml_scalar "$command_file" "updated_at" "$dispatch_updated_at"
+
     set_add_line "$COMMAND_NOTIFY_STATE_FILE" "$key"
+    set_add_line "$COMMAND_NOTIFY_STATE_FILE" "${command_id}|${dispatch_updated_at}|${command_hash}"
 }
 
 append_answer_to_task_context() {
@@ -736,7 +829,7 @@ process_report_notifications() {
 
         case "$persona" in
             investigation|analyst)
-                ac_send_direct_message task_author "$(ac_render_report_research_complete_message "$task_id" "$persona" "$result" "$command_id" "$artifact")"
+                :
                 ;;
             tester)
                 ac_send_direct_message task_author "$(ac_render_report_tester_update_message "$task_id" "$result" "$command_id")"
@@ -815,6 +908,7 @@ main_loop() {
         resume_tasks_from_answered_questions
         expand_pending_review_groups
         process_report_notifications
+        notify_task_author_research_complete
         finalize_review_groups
         dispatch_directory "$TASK_PENDING_DIR" "$TASK_INFLIGHT_DIR"
         dispatch_directory "$REVIEW_PENDING_DIR" "$REVIEW_INFLIGHT_DIR"
