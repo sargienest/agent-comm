@@ -717,7 +717,7 @@ class AgentCommHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/stream":
             self.handle_stream(parsed)
             return
-        if parsed.path == "/":
+        if parsed.path in {"/", "/index.html", "/dashboard", "/dashboard/", "/dashboard/index.html"}:
             self.path = "/index.html"
         return super().do_GET()
 
