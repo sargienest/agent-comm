@@ -780,20 +780,17 @@
         }
 
         .worker-row {
-            border-radius: 10px;
-            border: 1px solid var(--line);
-            background: rgba(7, 18, 30, 0.86);
-            padding: 8px;
+            padding: 0;
             display: flex;
             flex-direction: row;
             align-items: flex-start;
             justify-content: flex-start;
-            gap: 6px;
+            gap: 0;
             min-width: 0;
-            min-height: 58px;
+            min-height: 0;
             width: 100%;
             flex: 1 1 100%;
-            transition: border-color 0.2s ease, transform 0.2s ease;
+            transition: transform 0.2s ease;
         }
 
         .worker-row.state-shift {
@@ -815,27 +812,6 @@
                 transform: translateY(0) scale(1);
                 box-shadow: 0 0 0 rgba(255, 176, 92, 0);
             }
-        }
-
-        .worker-row:hover {
-            transform: translateY(-1px);
-        }
-
-        .worker-row.state-idle {
-            border-color: rgba(73, 208, 155, 0.45);
-        }
-
-        .worker-row.state-inflight,
-        .worker-row.state-running,
-        .worker-row.state-attention,
-        .worker-row.state-task_breakdown,
-        .worker-row.state-research_dispatching {
-            border-color: rgba(255, 193, 102, 0.45);
-        }
-
-        .worker-row.state-blocked,
-        .worker-row.state-offline {
-            border-color: rgba(255, 124, 134, 0.45);
         }
 
         .worker-row>* {
@@ -879,6 +855,26 @@
             background: rgba(10, 24, 38, 0.56);
             display: grid;
             gap: 6px;
+        }
+
+        .worker-agent.state-idle {
+            border-color: rgba(73, 208, 155, 0.45);
+            background: rgba(73, 208, 155, 0.08);
+        }
+
+        .worker-agent.state-inflight,
+        .worker-agent.state-running,
+        .worker-agent.state-attention,
+        .worker-agent.state-task_breakdown,
+        .worker-agent.state-research_dispatching {
+            border-color: rgba(255, 193, 102, 0.45);
+            background: rgba(255, 193, 102, 0.08);
+        }
+
+        .worker-agent.state-blocked,
+        .worker-agent.state-offline {
+            border-color: rgba(255, 124, 134, 0.45);
+            background: rgba(255, 124, 134, 0.08);
         }
 
         .worker-agent-head {
@@ -3319,39 +3315,6 @@
                 .join(' ');
         }
 
-        function workerGroupVisualWeight(state) {
-            const normalized = normalizeToken(state, 'unknown');
-            if (normalized === 'blocked' || normalized === 'offline' || normalized === 'requestchange') {
-                return 0;
-            }
-            if (
-                normalized === 'inflight' ||
-                normalized === 'running' ||
-                normalized === 'attention' ||
-                normalized === 'task_breakdown' ||
-                normalized === 'research_dispatching'
-            ) {
-                return 1;
-            }
-            if (normalized === 'pending' || normalized === 'queued') {
-                return 2;
-            }
-            if (normalized === 'idle') {
-                return 3;
-            }
-            return 4;
-        }
-
-        function summarizeWorkerGroupState(groupAgents) {
-            if (!Array.isArray(groupAgents) || groupAgents.length === 0) {
-                return 'unknown';
-            }
-            const rankedStates = groupAgents
-                .map((agent) => toText(agent.state, 'unknown'))
-                .sort((left, right) => workerGroupVisualWeight(left) - workerGroupVisualWeight(right));
-            return rankedStates[0] || 'unknown';
-        }
-
         function renderWorkers(snapshot) {
             const workersNode = document.getElementById('workers');
             const workers = (snapshot.runtime && Array.isArray(snapshot.runtime.workers)) ?
@@ -3424,12 +3387,11 @@
                 }
 
                 for (const group of groupedAgents) {
-                    const groupState = summarizeWorkerGroupState(group.agents);
                     const groupSignature = group.agents
                         .map((agent) => `${toText(agent.id, 'worker?')}:${toText(agent.state, 'unknown')}`)
                         .join('|');
                     const row = document.createElement('div');
-                    row.className = `worker-row state-${normalizeToken(groupState, 'unknown')}`;
+                    row.className = 'worker-row';
 
                     const previousState = previousWorkerStateMap[group.id];
                     if (
@@ -3449,7 +3411,7 @@
                         const workerId = toText(worker.id, 'worker?');
                         const workerState = toText(worker.state, 'unknown');
                         const agentCard = document.createElement('div');
-                        agentCard.className = 'worker-agent';
+                        agentCard.className = `worker-agent state-${normalizeToken(workerState, 'unknown')}`;
 
                         const head = document.createElement('div');
                         head.className = 'worker-agent-head';
