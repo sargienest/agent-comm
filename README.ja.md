@@ -17,14 +17,14 @@
 
 ## Quick Start
 
-1. `git clone https://github.com/sargienest/agent-comm.git` を実行します。
-2. `cd agent-comm` を実行します。
-3. `agent-comm.ini.example` を `agent-comm.ini` にコピーします。
-4. `agents.ini.example` を `agents.ini` にコピーします。
-5. 通知を使う場合は `notification.ini.example` を `notification.ini` に、`.env.example` を `.env` にコピーします。
-6. `agent-comm.ini` を編集し、`runtime.working_dir` を対象プロジェクトまたは worktree に設定します。
+1. `git clone https://github.com/sargienest/agent-comm.git && cd agent-comm` を実行します。
+2. `agent-comm.ini.example` を `agent-comm.ini` にコピーします。
+3. `agents.ini.example` を `agents.ini` にコピーします。
+4. 通知を使う場合は `.env.example` を `.env` にコピーします。
+5. `agent-comm.ini` を編集し、`runtime.working_dir` を対象プロジェクトまたは worktree に設定します。
+6. 通知を使う場合は `[notification]` の必要なフラグを有効にし、Discord 配信を使うなら `[discord].enable` も有効にします。
 7. `agents.ini` を編集します。
-8. 通知を有効にする場合は `notification.ini` と `.env` を編集します。
+8. Discord 通知を有効にした場合は、`[discord].webhook_url` が参照する env var 名に合わせて `.env` に webhook 値を設定します。
 9. `working_dir` に設定した path が、使う runtime 側で trust 済みであることを確認します。
 10. 使う runtime (`claude` / `codex`) にログインします。
 11. `bin/agent-comm start` を実行します。
@@ -67,7 +67,7 @@
 
 ## Config
 
-`agent-comm.ini` は共通 runtime 設定です。
+`agent-comm.ini` は共通 runtime 設定と任意の通知設定です。
 
 | セクション | キー | 既定値 | 説明 |
 | --- | --- | --- | --- |
@@ -81,13 +81,6 @@
 | `ui` | `open_browser` | `false` | 起動後に OS 既定ブラウザで dashboard URL を開きます。 |
 | `ui` | `language` | 空 | dashboard 専用 override です。空なら `runtime.language` を使います。翻訳がなければ `en`、さらに無ければ空文字へ fallback します。 |
 | `roles` | `extra_paths` | 空 | 追加 role root をカンマ区切りで指定します。各 path は `agent-comm.ini` 基準で解決され、`<path>/<lang>/...` を持つ前提です。 |
-
-`agents.ini` は agent 構成です。
-
-`notification.ini` は任意のライフサイクル通知設定です。
-
-| セクション | キー | 既定値 | 説明 |
-| --- | --- | --- | --- |
 | `notification` | `command_received` | `false` | dispatcher が新しい command を受け取り、`task_author` へ渡した時に通知します。 |
 | `notification` | `research_completed` | `false` | investigation / analyst の結果が揃い、`task_author` が次の分解に進める時に通知します。 |
 | `notification` | `implementation_task_created` | `false` | `task_author` が implementer 向け implementation task を書いた時に通知します。 |
@@ -99,12 +92,15 @@
 | `notification` | `workflow_completed` | `false` | command の全工程が正常完了した時に通知します。 |
 | `notification` | `question_opened` | `false` | worker がユーザー確認用の質問を作成した時に通知します。 |
 | `discord` | `enable` | `false` | 上記通知の Discord 配信を有効にします。 |
+| `discord` | `webhook_url` | `DISCORD_WEBHOOK_URL` | shell 環境変数または `.env` から解決する env var 名です。Webhook URL 本体ではありません。 |
+
+`agents.ini` は agent 構成です。
 
 `.env` には通知用のローカル secret を置きます。
 
 | キー | 既定値 | 説明 |
 | --- | --- | --- |
-| `discord_webhook_url` | 空 | `notification.ini` で `discord.enable = true` の時に使う Discord webhook URL です。 |
+| `DISCORD_WEBHOOK_URL` | 空 | `agent-comm.ini` で `discord.enable = true` かつ `discord.webhook_url = DISCORD_WEBHOOK_URL` の時に使う Discord webhook URL です。 |
 
 ルール:
 

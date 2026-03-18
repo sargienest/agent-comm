@@ -256,15 +256,6 @@ ac_agents_ini_get() {
     ac_ini_get_from_path "$(ac_agents_ini_path)" "$section" "$key" "$default_value"
 }
 
-ac_notification_ini_path() {
-    if [ -n "${AC_NOTIFICATION_INI_PATH:-}" ]; then
-        printf '%s\n' "$AC_NOTIFICATION_INI_PATH"
-        return
-    fi
-
-    printf '%s/notification.ini\n' "$(ac_repo_root)"
-}
-
 ac_env_path() {
     if [ -n "${AC_ENV_PATH:-}" ]; then
         printf '%s\n' "$AC_ENV_PATH"
@@ -272,13 +263,6 @@ ac_env_path() {
     fi
 
     printf '%s/.env\n' "$(ac_repo_root)"
-}
-
-ac_notification_ini_get() {
-    local section="$1"
-    local key="$2"
-    local default_value="${3:-}"
-    ac_ini_get_from_path "$(ac_notification_ini_path)" "$section" "$key" "$default_value"
 }
 
 ac_env_get_from_path() {
@@ -531,11 +515,11 @@ ac_load_agent_topology() {
 
 ac_load_config() {
     local configured_working_dir
+    local configured_webhook_ref
 
     AC_REPO_ROOT="$(ac_repo_root)"
     AC_INI_PATH="$(ac_ini_path)"
     AC_AGENTS_INI_PATH="$(ac_agents_ini_path)"
-    AC_NOTIFICATION_INI_PATH="$(ac_notification_ini_path)"
     AC_ENV_PATH="$(ac_env_path)"
     AC_RUNTIME_ROOT="${AC_REPO_ROOT}/.runtime"
 
@@ -572,24 +556,28 @@ ac_load_config() {
     fi
     [ -n "$AC_UI_LANGUAGE" ] || AC_UI_LANGUAGE="en"
 
-    AC_NOTIFY_COMMAND_RECEIVED="$(ac_parse_bool "$(ac_notification_ini_get notification command_received false)")"
-    AC_NOTIFY_RESEARCH_COMPLETED="$(ac_parse_bool "$(ac_notification_ini_get notification research_completed false)")"
-    AC_NOTIFY_QUESTION_OPENED="$(ac_parse_bool "$(ac_notification_ini_get notification question_opened false)")"
-    AC_NOTIFY_REVIEW_STARTED="$(ac_parse_bool "$(ac_notification_ini_get notification review_started false)")"
-    AC_NOTIFY_REVIEW_REQUESTED_CHANGES="$(ac_parse_bool "$(ac_notification_ini_get notification review_requested_changes false)")"
-    AC_NOTIFY_REVIEW_APPROVED="$(ac_parse_bool "$(ac_notification_ini_get notification review_approved false)")"
-    AC_NOTIFY_WORKFLOW_COMPLETED="$(ac_parse_bool "$(ac_notification_ini_get notification workflow_completed "$(ac_notification_ini_get notification completed false)")")"
-    AC_NOTIFY_IMPLEMENTATION_TASK_CREATED="$(ac_parse_bool "$(ac_notification_ini_get notification implementation_task_created "$(ac_notification_ini_get notification task_author_created_implementation false)")")"
-    AC_NOTIFY_IMPLEMENTER_STARTED="$(ac_parse_bool "$(ac_notification_ini_get notification implementer_started false)")"
-    AC_NOTIFY_TESTER_STARTED="$(ac_parse_bool "$(ac_notification_ini_get notification tester_started false)")"
-    AC_NOTIFY_DISCORD_ENABLED="$(ac_parse_bool "$(ac_notification_ini_get discord enable false)")"
+    AC_NOTIFY_COMMAND_RECEIVED="$(ac_parse_bool "$(ac_ini_get notification command_received false)")"
+    AC_NOTIFY_RESEARCH_COMPLETED="$(ac_parse_bool "$(ac_ini_get notification research_completed false)")"
+    AC_NOTIFY_QUESTION_OPENED="$(ac_parse_bool "$(ac_ini_get notification question_opened false)")"
+    AC_NOTIFY_REVIEW_STARTED="$(ac_parse_bool "$(ac_ini_get notification review_started false)")"
+    AC_NOTIFY_REVIEW_REQUESTED_CHANGES="$(ac_parse_bool "$(ac_ini_get notification review_requested_changes false)")"
+    AC_NOTIFY_REVIEW_APPROVED="$(ac_parse_bool "$(ac_ini_get notification review_approved false)")"
+    AC_NOTIFY_WORKFLOW_COMPLETED="$(ac_parse_bool "$(ac_ini_get notification workflow_completed "$(ac_ini_get notification completed false)")")"
+    AC_NOTIFY_IMPLEMENTATION_TASK_CREATED="$(ac_parse_bool "$(ac_ini_get notification implementation_task_created "$(ac_ini_get notification task_author_created_implementation false)")")"
+    AC_NOTIFY_IMPLEMENTER_STARTED="$(ac_parse_bool "$(ac_ini_get notification implementer_started false)")"
+    AC_NOTIFY_TESTER_STARTED="$(ac_parse_bool "$(ac_ini_get notification tester_started false)")"
+    AC_NOTIFY_DISCORD_ENABLED="$(ac_parse_bool "$(ac_ini_get discord enable false)")"
 
-    AC_DISCORD_WEBHOOK_URL="$(ac_trim "${DISCORD_WEBHOOK_URL:-}")"
-    if [ -z "$AC_DISCORD_WEBHOOK_URL" ]; then
-        AC_DISCORD_WEBHOOK_URL="$(ac_trim "${discord_webhook_url:-}")"
-    fi
-    if [ -z "$AC_DISCORD_WEBHOOK_URL" ]; then
-        AC_DISCORD_WEBHOOK_URL="$(ac_trim "$(ac_env_get discord_webhook_url '')")"
+    configured_webhook_ref="$(ac_trim "$(ac_ini_get discord webhook_url DISCORD_WEBHOOK_URL)")"
+    AC_DISCORD_WEBHOOK_ENV_KEY="$configured_webhook_ref"
+    AC_DISCORD_WEBHOOK_URL=""
+    if [[ "$AC_DISCORD_WEBHOOK_ENV_KEY" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+        AC_DISCORD_WEBHOOK_URL="$(ac_trim "${!AC_DISCORD_WEBHOOK_ENV_KEY:-}")"
+        if [ -z "$AC_DISCORD_WEBHOOK_URL" ]; then
+            AC_DISCORD_WEBHOOK_URL="$(ac_trim "$(ac_env_get "$AC_DISCORD_WEBHOOK_ENV_KEY" '')")"
+        fi
+    elif [ -n "$AC_DISCORD_WEBHOOK_ENV_KEY" ]; then
+        AC_DISCORD_WEBHOOK_URL="$AC_DISCORD_WEBHOOK_ENV_KEY"
     fi
 
     AC_ROLES_PATH="${AC_REPO_ROOT}/i18n/roles"

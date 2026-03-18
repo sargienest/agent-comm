@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
@@ -1753,7 +1753,7 @@
             <div class="title-wrap">
                 <div class="title-copy">
                     <h1 data-i18n="hero.title">Agent Comm Control Room</h1>
-                    <p data-i18n="hero.subtitle">マルチエージェント進捗をリアルタイム表示</p>
+                    <p data-i18n="hero.subtitle">Live multi-agent progress view</p>
                 </div>
             </div>
 
@@ -1766,7 +1766,7 @@
             <div class="top-actions">
                 <div class="top-status-bar">
                     <span id="connectionBadge" class="badge">Connecting</span>
-                    <button id="manualRefresh" type="button" class="btn" data-i18n="action.refresh">今すぐ更新</button>
+                    <button id="manualRefresh" type="button" class="btn" data-i18n="action.refresh">Refresh now</button>
                 </div>
                 <span class="top-last-update"><span data-i18n="top.last_update">last update</span> <span id="generatedAtValue" class="value">-</span></span>
             </div>
@@ -1780,8 +1780,8 @@
 
         <section id="tabOverview" class="tab-panel is-active">
             <section class="overview-mode-tabs">
-                <button type="button" class="mode-btn active" data-overview-mode-button="ops" data-i18n="overview.mode.ops">進行中</button>
-                <button type="button" class="mode-btn" data-overview-mode-button="history" data-i18n="overview.mode.history">履歴</button>
+                <button type="button" class="mode-btn active" data-overview-mode-button="ops" data-i18n="overview.mode.ops">Active</button>
+                <button type="button" class="mode-btn" data-overview-mode-button="history" data-i18n="overview.mode.history">History</button>
             </section>
 
             <section id="overviewModeOps" class="overview-mode-panel is-active">
@@ -1833,7 +1833,7 @@
                     <div class="active-columns">
                         <section class="active-column">
                             <div class="active-column-head">
-                                <strong id="activeImplementLabel">実装中・保留</strong>
+                                <strong id="activeImplementLabel">Implementation / pending</strong>
                                 <span class="muted" id="activeImplementCount">0</span>
                             </div>
                             <div id="activeImplementList" class="active-list"></div>
@@ -1841,7 +1841,7 @@
 
                         <section class="active-column">
                             <div class="active-column-head">
-                                <strong id="activeResearchLabel">調査・レビュー進行</strong>
+                                <strong id="activeResearchLabel">Research / review active</strong>
                                 <span class="muted" id="activeResearchCount">0</span>
                             </div>
                             <div id="activeResearchList" class="active-list"></div>
@@ -1852,7 +1852,7 @@
                 <section class="overview-grid">
                     <article class="panel ops-panel overview-feed">
                         <div class="panel-head">
-                            <h2 data-i18n="timeline.title">Live Feed / イベントタイムライン</h2>
+                            <h2 data-i18n="timeline.title">Live Feed / Event Timeline</h2>
                             <span id="eventCount" class="muted">0 items</span>
                         </div>
                         <div id="timeline" class="timeline"></div>
@@ -1861,16 +1861,16 @@
                     <article class="panel ops-panel overview-focus">
                         <div class="panel-head">
                             <h2 data-i18n="command.focus_title">Command Focus</h2>
-                            <span class="muted" data-i18n="command.focus_subtitle">優先指示</span>
+                            <span class="muted" data-i18n="command.focus_subtitle">Priority command</span>
                         </div>
 
                         <section class="focus-block">
                             <div class="panel-head">
-                                <h2 data-i18n="command.current_title">現在の指示</h2>
+                                <h2 data-i18n="command.current_title">Current command</h2>
                                 <span class="muted" id="commandMeta">-</span>
                             </div>
                             <div class="chips" id="commandChips"></div>
-                            <pre class="command-box" id="commandText">(command がありません)</pre>
+                            <pre class="command-box" id="commandText">(no command)</pre>
                         </section>
                     </article>
                 </section>
@@ -1880,7 +1880,7 @@
                 <section class="detail-grid">
                     <article class="card panel">
                         <div class="panel-head">
-                            <h2 data-i18n="history.title">タスク詳細</h2>
+                            <h2 data-i18n="history.title">Task Details</h2>
                             <span class="muted" id="taskListMeta">-</span>
                         </div>
                         <div class="table-wrap table-desktop">
@@ -1888,7 +1888,7 @@
                                 <thead>
                                     <tr>
                                         <th data-i18n="history.table.task">Task</th>
-                                        <th data-i18n="history.table.assignee">担当</th>
+                                        <th data-i18n="history.table.assignee">Assignee</th>
                                         <th data-i18n="history.table.status">Status</th>
                                         <th data-i18n="history.table.updated">Updated</th>
                                     </tr>
@@ -1902,7 +1902,7 @@
             </section>
 
             <div id="missingRootWarning" class="warning" hidden data-i18n="warning.missing_root">
-                `.runtime` が見つからないため、表示は空データです。agent-comm の runtime を確認してください。
+                `.runtime` was not found, so the dashboard is showing empty data. Check the agent-comm runtime.
             </div>
         </section>
 
@@ -1940,7 +1940,7 @@
                         </div>
                         <div id="dispatcherChips" class="chips"></div>
                     </div>
-                    <pre id="dispatcherHistory" class="history-box">(履歴なし)</pre>
+                    <pre id="dispatcherHistory" class="history-box">(no history)</pre>
                     <div class="send-row">
                         <span id="dispatcherCaptured" class="send-feedback">-</span>
                     </div>
@@ -1954,9 +1954,9 @@
             <section class="task-modal-card" role="dialog" aria-modal="true" aria-labelledby="taskDetailTitle">
                 <header class="task-modal-head">
                     <div>
-                        <h3 id="taskDetailTitle" data-i18n="modal.title">タスク詳細</h3>
+                        <h3 id="taskDetailTitle" data-i18n="modal.title">Task Details</h3>
                     </div>
-                    <button type="button" class="task-modal-close" data-task-modal-close="1" data-i18n="modal.close">閉じる</button>
+                    <button type="button" class="task-modal-close" data-task-modal-close="1" data-i18n="modal.close">Close</button>
                 </header>
 
                 <div id="taskDetailChips" class="chips"></div>
@@ -1967,7 +1967,7 @@
                         <span id="taskDetailId" class="task-modal-value">-</span>
                     </article>
                     <article class="task-modal-field">
-                        <span class="task-modal-label" data-i18n="modal.assignee_persona">担当 / Persona</span>
+                        <span class="task-modal-label" data-i18n="modal.assignee_persona">Assignee / Persona</span>
                         <span id="taskDetailAssignee" class="task-modal-value">-</span>
                     </article>
                     <article class="task-modal-field">
@@ -1979,22 +1979,22 @@
                         <span id="taskDetailCommandId" class="task-modal-value">-</span>
                     </article>
                     <article class="task-modal-field">
-                        <span class="task-modal-label" data-i18n="modal.created">作成</span>
+                        <span class="task-modal-label" data-i18n="modal.created">Created</span>
                         <span id="taskDetailCreatedAt" class="task-modal-value">-</span>
                     </article>
                     <article class="task-modal-field">
-                        <span class="task-modal-label" data-i18n="modal.updated_completed">更新 / 完了</span>
+                        <span class="task-modal-label" data-i18n="modal.updated_completed">Updated / Completed</span>
                         <span id="taskDetailUpdatedAt" class="task-modal-value">-</span>
                     </article>
                 </section>
 
                 <section class="task-modal-section">
-                    <h4 data-i18n="modal.section.title">タイトル</h4>
+                    <h4 data-i18n="modal.section.title">Title</h4>
                     <pre id="taskDetailTitleText" class="task-modal-pre"></pre>
                 </section>
 
                 <section class="task-modal-section">
-                    <h4 data-i18n="modal.section.description">説明</h4>
+                    <h4 data-i18n="modal.section.description">Description</h4>
                     <pre id="taskDetailDescription" class="task-modal-pre"></pre>
                 </section>
 
@@ -2014,7 +2014,7 @@
                 </section>
 
                 <section class="task-modal-section">
-                    <h4 data-i18n="modal.section.notes">補足</h4>
+                    <h4 data-i18n="modal.section.notes">Notes</h4>
                     <pre id="taskDetailNotes" class="task-modal-pre"></pre>
                 </section>
             </section>
@@ -2662,12 +2662,12 @@
             taskDetailCommandId.textContent = toText(item.command_id, '-');
             taskDetailCreatedAt.textContent = formatDateTime(item.created_at);
             taskDetailUpdatedAt.textContent = `${formatDateTime(item.updated_at || item.completed_at || item.created_at)} / ${formatDateTime(item.completed_at)}`;
-            taskDetailTitleText.textContent = toTextPreserveLines(item.title, t('task.title.empty', {}, '(titleなし)'));
-            taskDetailDescription.textContent = toTextPreserveLines(item.description, t('task.description.empty', {}, '(descriptionなし)'));
+            taskDetailTitleText.textContent = toTextPreserveLines(item.title, t('task.title.empty', {}, '(no title)'));
+            taskDetailDescription.textContent = toTextPreserveLines(item.description, t('task.description.empty', {}, '(no description)'));
 
-            renderTaskDetailList(taskDetailDependsOn, toStringList(item.depends_on), t('task.depends_on.empty', {}, '(depends_on なし)'));
-            renderTaskDetailList(taskDetailWriteFiles, toStringList(item.write_files), t('task.write_files.empty', {}, '(write_files なし)'));
-            renderTaskDetailList(taskDetailReadFiles, toStringList(item.read_files), t('task.read_files.empty', {}, '(read_files なし)'));
+            renderTaskDetailList(taskDetailDependsOn, toStringList(item.depends_on), t('task.depends_on.empty', {}, '(no depends_on)'));
+            renderTaskDetailList(taskDetailWriteFiles, toStringList(item.write_files), t('task.write_files.empty', {}, '(no write_files)'));
+            renderTaskDetailList(taskDetailReadFiles, toStringList(item.read_files), t('task.read_files.empty', {}, '(no read_files)'));
 
             const notes = [
                 `depends_on_count: ${item.depends_on_count ?? 0}`,
@@ -2828,6 +2828,42 @@
             applyTerminalGroupVisibility();
         }
 
+        function shouldPollTmuxSnapshot() {
+            const visibleTab = state.activeTab === 'terminal' || state.activeTab === 'dispatcher';
+            return visibleTab && document.hidden !== true;
+        }
+
+        function stopTmuxPolling() {
+            if (state.tmuxTimer) {
+                window.clearInterval(state.tmuxTimer);
+                state.tmuxTimer = null;
+            }
+        }
+
+        function startTmuxPolling() {
+            if (state.tmuxTimer) {
+                return;
+            }
+
+            state.tmuxTimer = window.setInterval(() => {
+                refreshTmuxSnapshot();
+            }, 2000);
+        }
+
+        function updateTmuxPollingState({ forceRefresh = false } = {}) {
+            if (shouldPollTmuxSnapshot()) {
+                if (forceRefresh) {
+                    refreshTmuxSnapshot({
+                        force: true,
+                    });
+                }
+                startTmuxPolling();
+                return;
+            }
+
+            stopTmuxPolling();
+        }
+
         function activateTab(tabName) {
             const normalizedTab = ['terminal', 'dispatcher'].includes(tabName) ? tabName : 'overview';
             state.activeTab = normalizedTab;
@@ -2850,8 +2886,11 @@
                         dispatcherHistory.scrollTop = dispatcherHistory.scrollHeight;
                     });
                 }
-                refreshTmuxSnapshot();
             }
+
+            updateTmuxPollingState({
+                forceRefresh: normalizedTab === 'terminal' || normalizedTab === 'dispatcher',
+            });
         }
 
         function activateOverviewMode(modeName) {
@@ -2902,7 +2941,7 @@
 
             const input = document.createElement('textarea');
             input.className = 'send-input';
-            input.placeholder = t('tmux.input_placeholder', {}, 'このエージェントへ送る指示を入力');
+            input.placeholder = t('tmux.input_placeholder', {}, 'Type a message for this agent');
             input.dataset.agentInput = agentId;
             input.value = getTmuxDraft(agentId);
             input.addEventListener('input', () => {
@@ -2918,7 +2957,7 @@
             const sendButton = document.createElement('button');
             sendButton.type = 'button';
             sendButton.className = 'small-btn';
-            sendButton.textContent = t('tmux.send', {}, '送信');
+            sendButton.textContent = t('tmux.send', {}, 'Send');
             sendButton.addEventListener('click', async () => {
                 await sendTmuxMessage(agentId, input, feedback, sendButton);
             });
@@ -3087,13 +3126,13 @@
             if (!agent) {
                 dispatcherLabel.textContent = t('dispatcher_tab.label', {}, 'Dispatcher');
                 dispatcherTarget.textContent = '-';
-                syncHistoryScroll(dispatcherHistory, t('dispatcher_tab.empty', {}, '(履歴なし)'));
+                syncHistoryScroll(dispatcherHistory, t('dispatcher_tab.empty', {}, '(no history)'));
                 dispatcherCaptured.textContent = '-';
                 dispatcherChips.appendChild(createChip('unknown'));
                 return;
             }
 
-            dispatcherLabel.textContent = toText(agent.label, t('dispatcher_tab.label', {}, 'Dispatcher'));
+            dispatcherLabel.textContent = formatTerminalAgentLabel(agent);
             dispatcherTarget.textContent = toText(agent.tmux_target, '-');
             renderAgentStateChips(dispatcherChips, agent);
 
@@ -3173,10 +3212,10 @@
                 }
 
                 const cardElements = state.tmuxCards[agentId];
-                cardElements.strong.textContent = toText(agent.label, agentId);
+                cardElements.strong.textContent = formatTerminalAgentLabel(agent);
                 cardElements.target.textContent = toText(agent.tmux_target, '-');
-                cardElements.input.placeholder = t('tmux.input_placeholder', {}, 'このエージェントへ送る指示を入力');
-                cardElements.sendButton.textContent = t('tmux.send', {}, '送信');
+                cardElements.input.placeholder = t('tmux.input_placeholder', {}, 'Type a message for this agent');
+                cardElements.sendButton.textContent = t('tmux.send', {}, 'Send');
                 renderAgentStateChips(cardElements.chips, agent);
 
                 const translatedHistory = resolveTmuxHistoryText(agent);
@@ -3222,8 +3261,12 @@
             applyTerminalGroupVisibility();
         }
 
-        async function refreshTmuxSnapshot() {
+        async function refreshTmuxSnapshot({ force = false } = {}) {
             if (!tmuxSnapshotEndpoint) {
+                return;
+            }
+
+            if (!force && !shouldPollTmuxSnapshot()) {
                 return;
             }
 
@@ -3244,11 +3287,11 @@
             } catch (error) {
                 if (tmuxError instanceof HTMLElement) {
                     tmuxError.hidden = false;
-                    tmuxError.textContent = t('tmux.fetch_failed', {}, 'tmux情報の取得に失敗しました。');
+                    tmuxError.textContent = t('tmux.fetch_failed', {}, 'Failed to fetch tmux info.');
                 }
                 if (dispatcherError instanceof HTMLElement) {
                     dispatcherError.hidden = false;
-                    dispatcherError.textContent = t('tmux.fetch_failed', {}, 'tmux情報の取得に失敗しました。');
+                    dispatcherError.textContent = t('tmux.fetch_failed', {}, 'Failed to fetch tmux info.');
                 }
                 console.error(error);
             }
@@ -3311,6 +3354,32 @@
             return [toText(runtime, ''), toText(model, '')]
                 .filter((value) => value !== '')
                 .join(' ');
+        }
+
+        function formatWorkerDisplayId(agentId) {
+            const raw = toText(agentId, 'worker?');
+            return raw.replace(/^([A-Za-z_]+)(\d+)$/, '$1 $2');
+        }
+
+        function formatTerminalAgentLabel(agent) {
+            const rawId = toText(agent?.id, 'worker?');
+            const match = rawId.match(/^([A-Za-z_]+)(\d+)$/);
+            const section = normalizeToken(agent?.section || (match ? match[1] : rawId), rawId);
+            const fallbackMap = {
+                coordinator: 'Coordinator',
+                task_author: 'Task Author',
+                dispatcher: 'Dispatcher',
+                investigation: 'Investigation',
+                analyst: 'Analyst',
+                tester: 'Tester',
+                implementer: 'Implementer',
+                reviewer: 'Reviewer',
+            };
+            const localizedBase = t(`agent.label.${section}`, {}, fallbackMap[section] || formatWorkerDisplayId(rawId));
+            if (match) {
+                return `${localizedBase} ${match[2]}`;
+            }
+            return localizedBase;
         }
 
         function renderWorkers(snapshot) {
@@ -3415,7 +3484,7 @@
                         head.className = 'worker-agent-head';
 
                         const strong = document.createElement('strong');
-                        strong.textContent = workerId;
+                        strong.textContent = formatWorkerDisplayId(workerId);
                         head.appendChild(strong);
 
                         const chips = document.createElement('div');
@@ -3472,73 +3541,73 @@
 
             if (group === 'implementation') {
                 if (status === 'pending' || status === 'queued') {
-                    return t('progress.bucket.implementation.pending', {}, '保留');
+                    return t('progress.bucket.implementation.pending', {}, 'Pending');
                 }
 
                 if (status === 'blocked' || status === 'requestchange' || status === 'rework') {
-                    return t('progress.bucket.implementation.rework', {}, '差し戻し');
+                    return t('progress.bucket.implementation.rework', {}, 'Rework');
                 }
 
                 if (status === 'attention') {
-                    return t('progress.bucket.implementation.attention', {}, '要確認');
+                    return t('progress.bucket.implementation.attention', {}, 'Needs attention');
                 }
 
                 if (status === 'unknown') {
-                    return t('progress.bucket.implementation.unknown', {}, '未確定');
+                    return t('progress.bucket.implementation.unknown', {}, 'Unclassified');
                 }
 
-                return t('progress.bucket.implementation.running', {}, '実装中');
+                return t('progress.bucket.implementation.running', {}, 'Implementing');
             }
 
             if (type === 'review') {
                 if (status === 'pending' || status === 'queued') {
-                    return t('progress.bucket.review.pending', {}, 'レビュー待ち');
+                    return t('progress.bucket.review.pending', {}, 'Review pending');
                 }
 
                 if (status === 'blocked' || status === 'requestchange' || status === 'rework') {
-                    return t('progress.bucket.review.rework', {}, 'レビュー差戻し');
+                    return t('progress.bucket.review.rework', {}, 'Review rework');
                 }
 
                 if (status === 'unknown') {
-                    return t('progress.bucket.review.unknown', {}, 'レビュー未確定');
+                    return t('progress.bucket.review.unknown', {}, 'Review unknown');
                 }
 
-                return t('progress.bucket.review.running', {}, 'レビュー中');
+                return t('progress.bucket.review.running', {}, 'Reviewing');
             }
 
             if (status === 'pending' || status === 'queued') {
-                return t('progress.bucket.research.pending', {}, '調査待ち');
+                return t('progress.bucket.research.pending', {}, 'Research pending');
             }
 
             if (status === 'blocked' || status === 'requestchange' || status === 'rework') {
-                return t('progress.bucket.research.blocked', {}, '調査保留');
+                return t('progress.bucket.research.blocked', {}, 'Research blocked');
             }
 
             if (status === 'unknown') {
-                return t('progress.bucket.research.unknown', {}, '調査未確定');
+                return t('progress.bucket.research.unknown', {}, 'Research unknown');
             }
 
-            return t('progress.bucket.research.running', {}, '調査中');
+            return t('progress.bucket.research.running', {}, 'Researching');
         }
 
         function summarizeProgressBuckets(items, group) {
             const order = group === 'implementation' ?
                 [
-                    t('progress.bucket.implementation.running', {}, '実装中'),
-                    t('progress.bucket.implementation.pending', {}, '保留'),
-                    t('progress.bucket.implementation.rework', {}, '差し戻し'),
-                    t('progress.bucket.implementation.attention', {}, '要確認'),
-                    t('progress.bucket.implementation.unknown', {}, '未確定'),
+                    t('progress.bucket.implementation.running', {}, 'Implementing'),
+                    t('progress.bucket.implementation.pending', {}, 'Pending'),
+                    t('progress.bucket.implementation.rework', {}, 'Rework'),
+                    t('progress.bucket.implementation.attention', {}, 'Needs attention'),
+                    t('progress.bucket.implementation.unknown', {}, 'Unclassified'),
                 ] :
                 [
-                    t('progress.bucket.research.running', {}, '調査中'),
-                    t('progress.bucket.research.pending', {}, '調査待ち'),
-                    t('progress.bucket.research.blocked', {}, '調査保留'),
-                    t('progress.bucket.research.unknown', {}, '調査未確定'),
-                    t('progress.bucket.review.running', {}, 'レビュー中'),
-                    t('progress.bucket.review.pending', {}, 'レビュー待ち'),
-                    t('progress.bucket.review.rework', {}, 'レビュー差戻し'),
-                    t('progress.bucket.review.unknown', {}, 'レビュー未確定'),
+                    t('progress.bucket.research.running', {}, 'Researching'),
+                    t('progress.bucket.research.pending', {}, 'Research pending'),
+                    t('progress.bucket.research.blocked', {}, 'Research blocked'),
+                    t('progress.bucket.research.unknown', {}, 'Research unknown'),
+                    t('progress.bucket.review.running', {}, 'Reviewing'),
+                    t('progress.bucket.review.pending', {}, 'Review pending'),
+                    t('progress.bucket.review.rework', {}, 'Review rework'),
+                    t('progress.bucket.review.unknown', {}, 'Review unknown'),
                 ];
             const counts = new Map();
 
@@ -3552,10 +3621,10 @@
                 .map((label) => `${label}(${counts.get(label)})`);
 
             return parts.length > 0 ?
-                parts.join(t('progress.separator', {}, '・')) :
+                parts.join(t('progress.separator', {}, ' / ')) :
                 (group === 'implementation' ?
-                    t('progress.implementation.default', {}, '実装中・保留') :
-                    t('progress.research.default', {}, '調査・レビュー進行'));
+                    t('progress.implementation.default', {}, 'Implementation / pending') :
+                    t('progress.research.default', {}, 'Research / review active'));
         }
 
         function renderActiveItems(nodeId, items, emptyLabel) {
@@ -3587,7 +3656,7 @@
 
                     const title = document.createElement('div');
                     title.className = 'active-item-title';
-                    title.textContent = `${toText(item.id, '-')}: ${toText(item.title, t('task.title.empty', {}, '(titleなし)'))}`;
+                    title.textContent = `${toText(item.id, '-')}: ${toText(item.title, t('task.title.empty', {}, '(no title)'))}`;
 
                     const meta = document.createElement('div');
                     meta.className = 'active-item-meta';
@@ -3668,11 +3737,11 @@
                 implement: implementItems.length,
                 research: researchItems.length,
             }, `implement ${implementItems.length} / research+review ${researchItems.length}`));
-            setText('activeImplementLabel', summarizeProgressBuckets(implementItems, 'implementation'), t('progress.implementation.default', {}, '実装中・保留'));
-            setText('activeResearchLabel', summarizeProgressBuckets(researchItems, 'research'), t('progress.research.default', {}, '調査・レビュー進行'));
+            setText('activeImplementLabel', summarizeProgressBuckets(implementItems, 'implementation'), t('progress.implementation.default', {}, 'Implementation / pending'));
+            setText('activeResearchLabel', summarizeProgressBuckets(researchItems, 'research'), t('progress.research.default', {}, 'Research / review active'));
 
-            renderActiveItems('activeImplementList', implementItems, t('progress.implementation.empty', {}, '進行中の実装・再作業タスクはありません'));
-            renderActiveItems('activeResearchList', researchItems, t('progress.research.empty', {}, '進行中の調査・レビューはありません'));
+            renderActiveItems('activeImplementList', implementItems, t('progress.implementation.empty', {}, 'No active implementation or rework tasks'));
+            renderActiveItems('activeResearchList', researchItems, t('progress.research.empty', {}, 'No active research or review items'));
         }
 
         function displayEventStatus(event) {
@@ -3718,7 +3787,7 @@
                 if (events.length === 0) {
                     const empty = document.createElement('div');
                     empty.className = 'muted';
-                    empty.textContent = t('timeline.empty', {}, 'イベントはまだありません');
+                    empty.textContent = t('timeline.empty', {}, 'No events yet');
                     timelineNode.appendChild(empty);
                     return;
                 }
@@ -3754,7 +3823,7 @@
 
                     const summary = document.createElement('div');
                     summary.className = 'timeline-summary';
-                    summary.textContent = toText(event.summary, t('timeline.summary.empty', {}, '(summaryなし)'));
+                    summary.textContent = toText(event.summary, t('timeline.summary.empty', {}, '(no summary)'));
 
                     item.appendChild(top);
                     item.appendChild(title);
@@ -3799,7 +3868,7 @@
             const reviewActiveNote = reviewCycleActive ? t('command.review_active_suffix', {}, ' / review active') : '';
             setText('commandMeta', `${idText} / ${updatedText}${reviewActiveNote}`);
 
-            commandTextNode.textContent = toText(command.command, t('command.empty', {}, '(command がありません)'));
+            commandTextNode.textContent = toText(command.command, t('command.empty', {}, '(no command)'));
         }
 
         function renderWorkItems(tbodyId, mobileListId, items, listMetaId, emptyLabel) {
@@ -3853,7 +3922,7 @@
                 tr.setAttribute('role', 'button');
                 tr.setAttribute('aria-label', t('task.detail.open_aria', {
                     id: toText(item.id, '-'),
-                }, `タスク詳細を表示: ${toText(item.id, '-')}`));
+                }, `Open task details: ${toText(item.id, '-')}`));
                 bindTaskDetailOpen(tr, item);
                 if (isNewItem) {
                     tr.classList.add('row-new');
@@ -3865,7 +3934,7 @@
                 id.className = 'mono';
                 id.textContent = toText(item.id, '-');
                 const title = document.createElement('div');
-                title.textContent = toText(item.title, t('task.title.empty', {}, '(titleなし)'));
+                title.textContent = toText(item.title, t('task.title.empty', {}, '(no title)'));
                 const small = document.createElement('div');
                 small.className = 'small';
                 small.textContent = t('task.depends_on.count', {
@@ -3909,7 +3978,7 @@
                 mobileItem.setAttribute('role', 'button');
                 mobileItem.setAttribute('aria-label', t('task.detail.open_aria', {
                     id: toText(item.id, '-'),
-                }, `タスク詳細を表示: ${toText(item.id, '-')}`));
+                }, `Open task details: ${toText(item.id, '-')}`));
                 bindTaskDetailOpen(mobileItem, item);
                 if (isNewItem) {
                     mobileItem.classList.add('row-new');
@@ -3934,7 +4003,7 @@
 
                 const mobileTitle = document.createElement('div');
                 mobileTitle.className = 'title';
-                mobileTitle.textContent = toText(item.title, t('task.title.empty', {}, '(titleなし)'));
+                mobileTitle.textContent = toText(item.title, t('task.title.empty', {}, '(no title)'));
                 mobileMain.appendChild(mobileTitle);
 
                 const mobileLine1 = document.createElement('div');
@@ -3942,14 +4011,14 @@
                 mobileLine1.textContent = t('task.mobile.assignee_meta', {
                     assigned_to: toText(item.assigned_to, '-'),
                     persona: toText(item.persona, '-'),
-                }, `担当: ${toText(item.assigned_to, '-')} / ${toText(item.persona, '-')}`);
+                }, `Assignee: ${toText(item.assigned_to, '-')} / ${toText(item.persona, '-')}`);
                 mobileMain.appendChild(mobileLine1);
 
                 const mobileLine2 = document.createElement('div');
                 mobileLine2.className = 'meta-line';
                 mobileLine2.textContent = t('task.mobile.updated_meta', {
                     updated: formatDateTime(item.updated_at || item.completed_at || item.created_at),
-                }, `更新: ${formatDateTime(item.updated_at || item.completed_at || item.created_at)}`);
+                }, `Updated: ${formatDateTime(item.updated_at || item.completed_at || item.created_at)}`);
                 mobileMain.appendChild(mobileLine2);
 
                 const mobileLine3 = document.createElement('div');
@@ -3981,7 +4050,7 @@
                 'taskMobileList',
                 snapshot.tasks?.items ?? [],
                 'taskListMeta',
-                t('history.empty', {}, 'タスクデータなし')
+                t('history.empty', {}, 'No task data')
             );
         }
 
@@ -4062,7 +4131,9 @@
 
         document.getElementById('manualRefresh').addEventListener('click', async () => {
             await refreshSnapshot();
-            await refreshTmuxSnapshot();
+            await refreshTmuxSnapshot({
+                force: true,
+            });
             connectStream();
         });
 
@@ -4077,7 +4148,9 @@
                 await setLanguage(nextLanguage);
                 render(state.snapshot);
                 if (state.activeTab === 'terminal' || state.activeTab === 'dispatcher') {
-                    await refreshTmuxSnapshot();
+                    await refreshTmuxSnapshot({
+                        force: true,
+                    });
                 }
             });
         }
@@ -4112,6 +4185,12 @@
             }
         });
 
+        document.addEventListener('visibilitychange', () => {
+            updateTmuxPollingState({
+                forceRefresh: shouldPollTmuxSnapshot(),
+            });
+        });
+
         async function bootstrap() {
             try {
                 await loadLanguageCatalog();
@@ -4131,15 +4210,11 @@
             activateTab('overview');
             activateOverviewMode('ops');
             activateTerminalGroup('coordinator');
-            refreshTmuxSnapshot();
 
             state.fallbackTimer = window.setInterval(() => {
                 refreshSnapshot();
             }, 30000);
-
-            state.tmuxTimer = window.setInterval(() => {
-                refreshTmuxSnapshot();
-            }, 2000);
+            updateTmuxPollingState();
         }
 
         bootstrap();
