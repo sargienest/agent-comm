@@ -1429,7 +1429,7 @@ refresh_current_status() {
             && ( has_active_research_tasks_for_command "$current_command_id" \
                 || has_active_primary_tasks_for_command "$current_command_id" \
                 || has_active_reviews_for_command "$current_command_id" ); then
-            task_author_status="inflight"
+            task_author_status="idle"
         else
             task_author_status="attention"
         fi

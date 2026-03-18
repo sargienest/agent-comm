@@ -32,7 +32,7 @@ cmd_validate_config() {
     [ -d "$AC_AGENT_WORKING_DIR" ] || ac_fail "runtime.working_dir was not found: ${AC_AGENT_WORKING_DIR}"
     if [ "$AC_NOTIFY_DISCORD_ENABLED" = "1" ] && ac_notifications_any_enabled; then
         require_command curl
-        [ -n "$AC_DISCORD_WEBHOOK_URL" ] || ac_fail "discord_webhook_url is required when Discord notifications are enabled."
+        [ -n "$AC_DISCORD_WEBHOOK_URL" ] || ac_fail "discord.webhook_url points to '${AC_DISCORD_WEBHOOK_ENV_KEY}', but no value was found in shell env or .env."
     fi
     mkdir -p "$AC_ROLES_PATH/en/personas" "$AC_ROLES_PATH/ja/personas"
     while IFS= read -r runtime; do
@@ -60,7 +60,6 @@ cmd_validate_config() {
     echo "session_name: ${AC_TMUX_SESSION_NAME}"
     echo "implementer_count: ${AC_SECTION_COUNT[implementer]}"
     echo "reviewer_count: ${AC_SECTION_COUNT[reviewer]}"
-    echo "notification_ini: ${AC_NOTIFICATION_INI_PATH}"
     echo "env_file: ${AC_ENV_PATH}"
     echo "notify_command_received: ${AC_NOTIFY_COMMAND_RECEIVED}"
     echo "notify_research_completed: ${AC_NOTIFY_RESEARCH_COMPLETED}"
@@ -73,36 +72,76 @@ cmd_validate_config() {
     echo "notify_implementer_started: ${AC_NOTIFY_IMPLEMENTER_STARTED}"
     echo "notify_tester_started: ${AC_NOTIFY_TESTER_STARTED}"
     echo "discord_notifications_enabled: ${AC_NOTIFY_DISCORD_ENABLED}"
+    echo "discord_webhook_env_key: ${AC_DISCORD_WEBHOOK_ENV_KEY}"
     echo "ui_auto_start: ${AC_UI_AUTO_START}"
     echo "ui_port: ${AC_UI_PORT}"
     echo "ui_language: ${AC_UI_LANGUAGE}"
 }
 
 stop_dashboard_server() {
+    local pid line pid_list=()
+
     if [ -f "$DASHBOARD_PID_FILE" ]; then
-        local pid
         pid="$(cat "$DASHBOARD_PID_FILE" 2>/dev/null || true)"
-        if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
-            wait "$pid" 2>/dev/null || true
+        if [[ "$pid" =~ ^[0-9]+$ ]]; then
+            pid_list+=("$pid")
         fi
-        rm -f "$DASHBOARD_PID_FILE"
     fi
+
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        pid_list+=("$line")
+    done < <(
+        ps -eo pid=,args= 2>/dev/null | while IFS= read -r line; do
+            pid="${line%% *}"
+            case "$line" in
+                *"dashboard_server.py"*"--repo-root ${AC_REPO_ROOT}"*)
+                    [[ "$pid" =~ ^[0-9]+$ ]] && printf '%s\n' "$pid"
+                    ;;
+            esac
+        done | awk '!seen[$0]++'
+    )
+
+    for pid in "${pid_list[@]}"; do
+        [[ "$pid" =~ ^[0-9]+$ ]] || continue
+        kill "$pid" 2>/dev/null || true
+    done
+
+    sleep 0.2
+
+    for pid in "${pid_list[@]}"; do
+        [[ "$pid" =~ ^[0-9]+$ ]] || continue
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
+
+    rm -f "$DASHBOARD_PID_FILE"
 }
 
 dashboard_server_running() {
-    local pid
+    local pid line
 
-    if [ ! -f "$DASHBOARD_PID_FILE" ]; then
-        return 1
+    if [ -f "$DASHBOARD_PID_FILE" ]; then
+        pid="$(cat "$DASHBOARD_PID_FILE" 2>/dev/null || true)"
+        if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            return 0
+        fi
     fi
 
-    pid="$(cat "$DASHBOARD_PID_FILE" 2>/dev/null || true)"
-    if ! [[ "$pid" =~ ^[0-9]+$ ]]; then
-        return 1
-    fi
+    while IFS= read -r line; do
+        case "$line" in
+            *"dashboard_server.py"*"--repo-root ${AC_REPO_ROOT}"*)
+                pid="${line%% *}"
+                if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+                    printf '%s\n' "$pid" > "$DASHBOARD_PID_FILE"
+                    return 0
+                fi
+                ;;
+        esac
+    done < <(ps -eo pid=,args= 2>/dev/null)
 
-    kill -0 "$pid" 2>/dev/null
+    return 1
 }
 
 start_dashboard_server() {

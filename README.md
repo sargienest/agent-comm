@@ -17,14 +17,14 @@
 
 ## Quick Start
 
-1. Run `git clone https://github.com/sargienest/agent-comm.git`.
-2. Run `cd agent-comm`.
-3. Copy `agent-comm.ini.example` to `agent-comm.ini`.
-4. Copy `agents.ini.example` to `agents.ini`.
-5. If you want notifications, copy `notification.ini.example` to `notification.ini` and `.env.example` to `.env`.
-6. Edit `agent-comm.ini` and set `runtime.working_dir` to the target project or worktree.
+1. Run `git clone https://github.com/sargienest/agent-comm.git && cd agent-comm`.
+2. Copy `agent-comm.ini.example` to `agent-comm.ini`.
+3. Copy `agents.ini.example` to `agents.ini`.
+4. If you want notifications, copy `.env.example` to `.env`.
+5. Edit `agent-comm.ini` and set `runtime.working_dir` to the target project or worktree.
+6. If you want notifications, enable the flags you need under `[notification]`. For Discord delivery, also enable `[discord].enable`.
 7. Edit `agents.ini`.
-8. If you enabled notifications, edit `notification.ini` and `.env`.
+8. If Discord notifications are enabled, set the webhook value in `.env` using the env var name referenced by `[discord].webhook_url`.
 9. Make sure the `working_dir` path is already trusted by the runtimes you use.
 10. Log in to the runtimes you use.
 11. Run `bin/agent-comm start`.
@@ -67,7 +67,7 @@ All generated data stays inside `agent-comm/.runtime/`.
 
 ## Config
 
-`agent-comm.ini` controls shared runtime behavior.
+`agent-comm.ini` controls shared runtime behavior and optional notifications.
 
 | Section | Key | Default | Description |
 | --- | --- | --- | --- |
@@ -81,13 +81,6 @@ All generated data stays inside `agent-comm/.runtime/`.
 | `ui` | `open_browser` | `false` | Opens the dashboard URL in the OS default browser after startup. |
 | `ui` | `language` | empty | Optional dashboard-only override. If blank, the dashboard uses `runtime.language`. Missing translations fall back to `en`, then to empty strings. |
 | `roles` | `extra_paths` | empty | Comma-separated extra role roots. Each path is resolved from `agent-comm.ini` and should contain `<path>/<lang>/...`. |
-
-`agents.ini` controls the agent topology.
-
-`notification.ini` controls optional lifecycle notifications.
-
-| Section | Key | Default | Description |
-| --- | --- | --- | --- |
 | `notification` | `command_received` | `false` | Sends a notification when dispatcher accepts a new command and forwards it to `task_author`. |
 | `notification` | `research_completed` | `false` | Sends a notification when the investigation / analyst result set is ready for `task_author`. |
 | `notification` | `implementation_task_created` | `false` | Sends a notification each time `task_author` writes an implementation task for the implementer pool. |
@@ -99,12 +92,15 @@ All generated data stays inside `agent-comm/.runtime/`.
 | `notification` | `workflow_completed` | `false` | Sends a notification when the full command flow completes successfully. |
 | `notification` | `question_opened` | `false` | Sends a notification when a worker opens a user-facing question. |
 | `discord` | `enable` | `false` | Enables Discord delivery for the notification events above. |
+| `discord` | `webhook_url` | `DISCORD_WEBHOOK_URL` | Env var name to resolve from the shell or `.env`. This is a variable name, not the webhook URL itself. |
+
+`agents.ini` controls the agent topology.
 
 `.env` stores local notification secrets.
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `discord_webhook_url` | empty | Discord webhook URL used when `notification.ini` has `discord.enable = true`. |
+| `DISCORD_WEBHOOK_URL` | empty | Discord webhook URL used when `agent-comm.ini` has `discord.enable = true` and `discord.webhook_url = DISCORD_WEBHOOK_URL`. |
 
 Rules:
 
