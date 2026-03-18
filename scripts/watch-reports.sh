@@ -624,6 +624,43 @@ mark_command_done_after_review_approve() {
     ac_log "✅ command marked done after review approval: ${command_id} (cycle=${cycle_id})"
 }
 
+enforce_command_inflight_until_review_complete() {
+    local command_file command_id command_status done_signature now_iso reset_required
+
+    command_file="${COMMANDS_DIR}/command.yaml"
+    [ -f "$command_file" ] || return 0
+
+    command_id=$(ac_read_yaml_scalar "$command_file" "id")
+    [ -n "$command_id" ] || return 0
+
+    command_status=$(ac_read_yaml_scalar "$command_file" "status")
+    [ "$command_status" = "done" ] || return 0
+
+    read_review_cycle_state
+    done_signature="$(build_done_signature_for_command "$command_id")"
+    reset_required=0
+
+    if has_active_research_tasks_for_command "$command_id" \
+        || has_unnotified_research_results_for_command "$command_id" \
+        || has_active_primary_tasks_for_command "$command_id" \
+        || has_active_reviews_for_command "$command_id"; then
+        reset_required=1
+    elif [ -z "$done_signature" ]; then
+        if has_done_research_tasks_for_command "$command_id"; then
+            reset_required=1
+        fi
+    elif [ "$done_signature" != "$REVIEW_LAST_APPROVED_SIGNATURE" ]; then
+        reset_required=1
+    fi
+
+    [ "$reset_required" -eq 1 ] || return 0
+
+    now_iso="$(ac_now_iso)"
+    ac_set_yaml_scalar "$command_file" "status" "inflight"
+    ac_set_yaml_scalar "$command_file" "updated_at" "$now_iso"
+    ac_log "$(ac_t_format 'watch.command_status_reset_inflight' "command_id=${command_id}")"
+}
+
 create_aggregated_rework_task() {
     local cycle_id="$1"
     local command_id="$2"
@@ -1459,6 +1496,7 @@ main_loop() {
         process_open_questions_notify
         resume_tasks_from_answered_questions
         process_report_notifications
+        enforce_command_inflight_until_review_complete
         notify_task_author_research_complete
         notify_new_implementation_tasks
         requeue_blocked_pre_review_test_gate_tasks
