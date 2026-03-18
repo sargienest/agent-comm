@@ -1,5 +1,5 @@
 #!/bin/bash
-# coordinator用: open質問に回答を追記し answered へ移す
+# Adds an answer to an open question and moves it to answered.
 
 set -euo pipefail
 

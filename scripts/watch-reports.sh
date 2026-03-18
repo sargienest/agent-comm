@@ -15,8 +15,10 @@ QUESTION_RESUME_STATE_FILE="${STATUS_DIR}/question_resume_state.txt"
 COMMAND_NOTIFY_STATE_FILE="${STATUS_DIR}/command_dispatch_state.txt"
 REPORT_NOTIFY_STATE_FILE="${STATUS_DIR}/report_notify_state.txt"
 RESEARCH_NOTIFY_STATE_FILE="${STATUS_DIR}/research_complete_notify_state.txt"
+IMPLEMENTATION_NOTIFY_STATE_FILE="${STATUS_DIR}/implementation_notify_state.txt"
 REVIEW_CYCLE_STATE_FILE="${RUNTIME_DIR}/review_cycle_state.env"
 TMUX_SNAPSHOT_LOOP_PID=""
+CREATED_REWORK_TASK_FILE=""
 
 set_contains_line() {
     local file="$1"
@@ -72,7 +74,8 @@ init_runtime() {
         "$QUESTION_RESUME_STATE_FILE" \
         "$COMMAND_NOTIFY_STATE_FILE" \
         "$REPORT_NOTIFY_STATE_FILE" \
-        "$RESEARCH_NOTIFY_STATE_FILE"
+        "$RESEARCH_NOTIFY_STATE_FILE" \
+        "$IMPLEMENTATION_NOTIFY_STATE_FILE"
 
     token=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
     [ -n "$token" ] || token="token_${RANDOM}_$(date +%s)"
@@ -440,7 +443,7 @@ find_pre_review_test_gate_task_file() {
 }
 
 notify_task_author_research_complete() {
-    local task_file task_id task_type artifact_path summary_lines=""
+    local task_file task_id task_type artifact_path summary_lines="" current_command_id
     local -a pending_notify_ids=()
 
     if has_active_research_tasks; then
@@ -471,8 +474,44 @@ notify_task_author_research_complete() {
     ac_send_direct_message task_author "${AC_RESET_COMMAND}
 $(ac_render_report_research_summary_message "${summary_lines%$'\n'}")"
 
+    current_command_id="$(ac_read_yaml_scalar "${COMMANDS_DIR}/command.yaml" "id")"
+    ac_notify_if_enabled_logged \
+        "research_completed" \
+        "$(ac_t 'notify.research_completed.title')" \
+        "$(ac_t_format 'notify.research_completed.message' \
+            "command_id=${current_command_id}" \
+            "summary_lines=${summary_lines%$'\n'}")" \
+        "${current_command_id}"
+
     for task_id in "${pending_notify_ids[@]}"; do
         set_add_line "$RESEARCH_NOTIFY_STATE_FILE" "$task_id"
+    done
+}
+
+notify_new_implementation_tasks() {
+    local task_file task_id command_id title
+
+    for task_file in "$TASK_PENDING_DIR"/*.yaml "$TASK_INFLIGHT_DIR"/*.yaml; do
+        [ -f "$task_file" ] || continue
+        [ "$(ac_read_yaml_scalar "$task_file" "type")" = "implementation" ] || continue
+        [ "$(ac_read_yaml_scalar "$task_file" "persona")" = "implementer" ] || continue
+
+        task_id=$(ac_read_yaml_scalar "$task_file" "id")
+        [ -n "$task_id" ] || task_id="$(basename "$task_file" .yaml)"
+        [ -n "$task_id" ] || continue
+        set_contains_line "$IMPLEMENTATION_NOTIFY_STATE_FILE" "$task_id" && continue
+
+        command_id=$(ac_read_yaml_scalar "$task_file" "command_id")
+        title=$(ac_read_yaml_scalar "$task_file" "title")
+        ac_notify_if_enabled_logged \
+            "implementation_task_created" \
+            "$(ac_t 'notify.implementation_task_created.title')" \
+            "$(ac_t_format 'notify.implementation_task_created.message' \
+                "task_id=${task_id}" \
+                "command_id=${command_id}" \
+                "title=${title}")" \
+            "${task_id}"
+        set_add_line "$IMPLEMENTATION_NOTIFY_STATE_FILE" "$task_id"
     done
 }
 
@@ -573,6 +612,15 @@ mark_command_done_after_review_approve() {
     now_iso=$(ac_now_iso)
     ac_set_yaml_scalar "$command_file" "status" "done"
     ac_set_yaml_scalar "$command_file" "updated_at" "$now_iso"
+
+    ac_notify_if_enabled_logged \
+        "workflow_completed" \
+        "$(ac_t 'notify.workflow_completed.title')" \
+        "$(ac_t_format 'notify.workflow_completed.message' \
+            "command_id=${command_id}" \
+            "cycle_id=${cycle_id}")" \
+        "${command_id}"
+
     ac_log "✅ command marked done after review approval: ${command_id} (cycle=${cycle_id})"
 }
 
@@ -584,6 +632,7 @@ create_aggregated_rework_task() {
     local -a depends_args=("$@")
     local task_id task_file description
 
+    CREATED_REWORK_TASK_FILE=""
     [ -n "$command_id" ] || command_id="$(ac_read_yaml_scalar "${COMMANDS_DIR}/command.yaml" "id")"
     [ -n "$command_id" ] || return 1
 
@@ -607,8 +656,23 @@ create_aggregated_rework_task() {
     if [ -n "$note_path" ]; then
         ac_set_yaml_scalar "$task_file" "rework_note_path" "$note_path"
     fi
+    CREATED_REWORK_TASK_FILE="$task_file"
 
     ac_log "🧩 aggregated rework task created: ${task_id}"
+}
+
+create_requestchange_note() {
+    local child_id="$1"
+    local content="$2"
+    local note_path
+
+    note_path="${REWORK_DIR}/${child_id}_requestchange.md"
+    {
+        printf '# Request Change %s\n' "$child_id"
+        echo
+        printf '%s\n' "$content"
+    } > "$note_path"
+    printf '%s\n' "$note_path"
 }
 
 generate_review_tasks_if_needed() {
@@ -904,6 +968,15 @@ expand_pending_review_groups() {
         destination="${REVIEW_INFLIGHT_DIR}/$(basename "$parent_file")"
         mv "$parent_file" "$destination"
 
+        ac_notify_if_enabled_logged \
+            "review_started" \
+            "$(ac_t 'notify.review_started.title')" \
+            "$(ac_t_format 'notify.review_started.message' \
+                "command_id=$(ac_read_yaml_scalar "$destination" "command_id")" \
+                "cycle_id=${cycle_id}" \
+                "reviewer_count=${count}")" \
+            "cycle=${cycle_id}"
+
         ac_log "✅ review fan-out: ${parent_id} -> ${count} reviewers"
     done < <(find "$REVIEW_PENDING_DIR" -maxdepth 1 -type f -name '*.yaml' | sort)
 }
@@ -911,8 +984,10 @@ expand_pending_review_groups() {
 finalize_review_groups() {
     local parent_file parent_id cycle_id now_iso command_id note_path
     local reviewer_id child_id child_file child_state report_file review_decision result summary details findings_text target reviewer reviewer_count
+    local child_note_body child_note_path
     local all_ready any_requestchange aggregate_body
     local findings_items=()
+    local requestchange_note_paths=()
     local rework_targets=()
     local -a review_depends=()
     local -a target_depends=()
@@ -931,6 +1006,7 @@ finalize_review_groups() {
         all_ready=1
         any_requestchange=0
         aggregate_body=""
+        requestchange_note_paths=()
         command_id="$(ac_read_yaml_scalar "$parent_file" "command_id")"
         review_depends=()
         target_depends=()
@@ -995,6 +1071,24 @@ finalize_review_groups() {
                     fi
                 done
             fi
+            child_note_path=""
+            if [ "$review_decision" = "requestchange" ]; then
+                child_note_body="reviewer: ${reviewer}"$'\n'
+                child_note_body+="task_id: ${child_id}"$'\n'
+                child_note_body+="result: ${result}"$'\n'
+                child_note_body+="review_decision: ${review_decision}"$'\n'
+                if [ "${#rework_targets[@]}" -gt 0 ]; then
+                    child_note_body+="rework_targets: $(IFS=', '; printf '%s' "${rework_targets[*]}")"$'\n'
+                fi
+                child_note_body+="summary:"$'\n'"${summary:-"(empty)"}"$'\n'
+                child_note_body+="details:"$'\n'"${details:-"(empty)"}"$'\n'
+                if [ -n "$findings_text" ]; then
+                    child_note_body+="findings:"$'\n'"${findings_text}"$'\n'
+                fi
+                child_note_path="$(create_requestchange_note "$child_id" "$child_note_body")"
+                requestchange_note_paths+=("$child_note_path")
+                aggregate_body+="rework_note_path: ${child_note_path}"$'\n'
+            fi
             aggregate_body+="summary:"$'\n'"${summary:-"(empty)"}"$'\n'
             aggregate_body+="details:"$'\n'"${details:-"(empty)"}"$'\n'
             if [ -n "$findings_text" ]; then
@@ -1017,9 +1111,29 @@ finalize_review_groups() {
                 continue
             fi
             ac_set_yaml_scalar "$parent_file" "rework_note_path" "$note_path"
+            ac_replace_yaml_list_block "$parent_file" "rework_note_paths" "${requestchange_note_paths[@]}"
+            if [ -n "$CREATED_REWORK_TASK_FILE" ] && [ -f "$CREATED_REWORK_TASK_FILE" ]; then
+                ac_replace_yaml_list_block "$CREATED_REWORK_TASK_FILE" "rework_note_paths" "${requestchange_note_paths[@]}"
+                ac_notify_if_enabled_logged \
+                    "review_requested_changes" \
+                    "$(ac_t 'notify.review_requested_changes.title')" \
+                    "$(ac_t_format 'notify.review_requested_changes.message' \
+                        "command_id=${command_id}" \
+                        "cycle_id=${cycle_id}" \
+                        "task_id=$(ac_read_yaml_scalar "$CREATED_REWORK_TASK_FILE" "id")")" \
+                    "cycle=${cycle_id}"
+            fi
             ac_set_yaml_scalar "$parent_file" "result" "failure"
             ac_set_yaml_scalar "$parent_file" "review_decision" "requestchange"
         else
+            ac_notify_if_enabled_logged \
+                "review_approved" \
+                "$(ac_t 'notify.review_approved.title')" \
+                "$(ac_t_format 'notify.review_approved.message' \
+                    "command_id=${command_id}" \
+                    "cycle_id=${cycle_id}" \
+                    "reviewer_count=${reviewer_count}")" \
+                "cycle=${cycle_id}"
             ac_set_yaml_scalar "$parent_file" "result" "success"
             ac_set_yaml_scalar "$parent_file" "review_decision" "approve"
         fi
@@ -1046,7 +1160,7 @@ finalize_review_groups() {
 dispatch_directory() {
     local pending_dir="$1"
     local inflight_dir="$2"
-    local task_file assigned_to worker_id now_iso destination task_id was_preassigned
+    local task_file assigned_to worker_id now_iso destination task_id was_preassigned persona command_id title
     local pending_files=()
 
     while IFS= read -r task_file; do
@@ -1081,6 +1195,32 @@ dispatch_directory() {
 
         if notify_worker_for_task "$destination"; then
             task_id=$(ac_read_yaml_scalar "$destination" "id")
+            persona=$(ac_read_yaml_scalar "$destination" "persona")
+            command_id=$(ac_read_yaml_scalar "$destination" "command_id")
+            title=$(ac_read_yaml_scalar "$destination" "title")
+            if [ "$persona" = "implementer" ]; then
+                ac_notify_if_enabled_logged \
+                    "implementer_started" \
+                    "$(ac_t 'notify.implementer_started.title')" \
+                    "$(ac_t_format 'notify.implementer_started.message' \
+                        "task_id=${task_id}" \
+                        "command_id=${command_id}" \
+                        "worker_id=${worker_id}" \
+                        "task_type=$(ac_read_yaml_scalar "$destination" "type")" \
+                        "title=${title}")" \
+                    "${task_id}"
+            fi
+            if [ "$persona" = "tester" ]; then
+                ac_notify_if_enabled_logged \
+                    "tester_started" \
+                    "$(ac_t 'notify.tester_started.title')" \
+                    "$(ac_t_format 'notify.tester_started.message' \
+                        "task_id=${task_id}" \
+                        "command_id=${command_id}" \
+                        "worker_id=${worker_id}" \
+                        "title=${title}")" \
+                    "${task_id}"
+            fi
             ac_log "✅ task dispatched: ${task_id} -> ${worker_id}"
         else
             ac_release_task_locks "$destination"
@@ -1142,6 +1282,14 @@ process_command_queue() {
 
     ac_send_direct_message task_author "${AC_RESET_COMMAND}
 $(ac_render_command_notify_message "$command_file" "$command_text")"
+
+    ac_notify_if_enabled_logged \
+        "command_received" \
+        "$(ac_t 'notify.command_received.title')" \
+        "$(ac_t_format 'notify.command_received.message' \
+            "command_id=${command_id}" \
+            "command_text=${command_text}")" \
+        "${command_id}"
 
     dispatch_updated_at=$(ac_now_iso)
     ac_set_yaml_scalar "$command_file" "status" "inflight"
@@ -1213,6 +1361,15 @@ process_open_questions_notify() {
         question=$(ac_read_yaml_block "$question_file" "question")
 
         ac_send_direct_message coordinator "$(ac_render_open_question_notify_message "$question_id" "$task_id" "$asked_by" "$question_file" "$question")"
+        ac_notify_if_enabled_logged \
+            "question_opened" \
+            "$(ac_t 'notify.question_opened.title')" \
+            "$(ac_t_format 'notify.question_opened.message' \
+                "question_id=${question_id}" \
+                "task_id=${task_id}" \
+                "asked_by=${asked_by}" \
+                "question=${question}")" \
+            "${question_id}"
         set_add_line "$QUESTION_NOTIFY_STATE_FILE" "$question_id"
     done
 }
@@ -1303,6 +1460,7 @@ main_loop() {
         resume_tasks_from_answered_questions
         process_report_notifications
         notify_task_author_research_complete
+        notify_new_implementation_tasks
         requeue_blocked_pre_review_test_gate_tasks
         generate_review_tasks_if_needed
         expand_pending_review_groups

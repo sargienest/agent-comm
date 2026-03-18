@@ -1,8 +1,8 @@
 #!/bin/bash
-# task_author 用: タスクYAMLを生成する
-# - investigation/analyst/rework は write_files を省略可能
-#   （investigation/analyst は result_artifact_path に成果物を保存）
-# - depends_on の存在/循環/自己依存を検証
+# Writes task YAML files for task_author.
+# - investigation / analyst / rework may omit write_files.
+# - investigation / analyst store outputs in result_artifact_path.
+# - Validates depends_on existence, cycles, and self-dependencies.
 
 set -euo pipefail
 
@@ -227,7 +227,7 @@ if ac_find_task_file_by_id "$TASK_ID" >/dev/null 2>&1; then
     exit 1
 fi
 
-# depends_on 検証: 自己依存禁止 + 参照先存在
+# depends_on validation: forbid self-dependency and require existing targets.
 existing_ids_tmp=$(mktemp)
 trap 'rm -f "$existing_ids_tmp"' EXIT
 ac_collect_task_ids > "$existing_ids_tmp"
@@ -245,7 +245,7 @@ for dep in "${DEPENDS_ON[@]}"; do
     fi
 done
 
-# depends_on 検証: 循環禁止（tsort）
+# depends_on validation: reject cycles via tsort.
 edges_tmp=$(mktemp)
 trap 'rm -f "$existing_ids_tmp" "$edges_tmp"' EXIT
 
@@ -297,6 +297,8 @@ trap 'rm -f "$existing_ids_tmp" "$edges_tmp" "$tmp_file"' EXIT
     ac_write_yaml_list_block "write_files" "${WRITE_FILES[@]}"
     ac_write_yaml_list_block "read_files" "${READ_FILES[@]}"
     echo "result_artifact_path: \"$(escape_yaml "$RESULT_ARTIFACT_PATH")\""
+    echo "rework_note_path: \"\""
+    ac_write_yaml_list_block "rework_note_paths"
     echo "exclusive_group: \"$(escape_yaml "$EXCLUSIVE_GROUP")\""
     echo "status: \"pending\""
     echo "assigned_to: \"$(escape_yaml "$ASSIGNED_TO")\""

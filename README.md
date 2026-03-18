@@ -21,12 +21,14 @@
 2. Run `cd agent-comm`.
 3. Copy `agent-comm.ini.example` to `agent-comm.ini`.
 4. Copy `agents.ini.example` to `agents.ini`.
-5. Edit `agent-comm.ini` and set `runtime.working_dir` to the target project or worktree.
-6. Edit `agents.ini`.
-7. Make sure the `working_dir` path is already trusted by the runtimes you use.
-8. Log in to the runtimes you use.
-9. Run `bin/agent-comm start`.
-10. Open the dashboard URL printed by `start` or `status`.
+5. If you want notifications, copy `notification.ini.example` to `notification.ini` and `.env.example` to `.env`.
+6. Edit `agent-comm.ini` and set `runtime.working_dir` to the target project or worktree.
+7. Edit `agents.ini`.
+8. If you enabled notifications, edit `notification.ini` and `.env`.
+9. Make sure the `working_dir` path is already trusted by the runtimes you use.
+10. Log in to the runtimes you use.
+11. Run `bin/agent-comm start`.
+12. Open the dashboard URL printed by `start` or `status`.
 
 The shipped `agents.ini.example` stays Codex-only so the first launch works with one authenticated runtime. Switch any section to `claude` when you want a mixed topology.
 
@@ -78,9 +80,31 @@ All generated data stays inside `agent-comm/.runtime/`.
 | `ui` | `port` | `43861` | Local dashboard port. |
 | `ui` | `open_browser` | `false` | Opens the dashboard URL in the OS default browser after startup. |
 | `ui` | `language` | empty | Optional dashboard-only override. If blank, the dashboard uses `runtime.language`. Missing translations fall back to `en`, then to empty strings. |
-| `roles` | `extra_paths` | empty | Comma-separated extra role i18n roots. Each path is resolved from `agent-comm.ini` and should contain `<path>/<lang>/...`. |
+| `roles` | `extra_paths` | empty | Comma-separated extra role roots. Each path is resolved from `agent-comm.ini` and should contain `<path>/<lang>/...`. |
 
 `agents.ini` controls the agent topology.
+
+`notification.ini` controls optional lifecycle notifications.
+
+| Section | Key | Default | Description |
+| --- | --- | --- | --- |
+| `notification` | `command_received` | `false` | Sends a notification when dispatcher accepts a new command and forwards it to `task_author`. |
+| `notification` | `research_completed` | `false` | Sends a notification when the investigation / analyst result set is ready for `task_author`. |
+| `notification` | `implementation_task_created` | `false` | Sends a notification each time `task_author` writes an implementation task for the implementer pool. |
+| `notification` | `implementer_started` | `false` | Sends a notification when dispatcher dispatches an implementation or rework task to an implementer. |
+| `notification` | `tester_started` | `false` | Sends a notification when dispatcher dispatches a tester task. |
+| `notification` | `review_started` | `false` | Sends a notification when the overall review fan-out starts. |
+| `notification` | `review_approved` | `false` | Sends a notification when the overall review finishes with `approve`. |
+| `notification` | `review_requested_changes` | `false` | Sends a notification when the overall review returns `requestchange` and a rework task is created. |
+| `notification` | `workflow_completed` | `false` | Sends a notification when the full command flow completes successfully. |
+| `notification` | `question_opened` | `false` | Sends a notification when a worker opens a user-facing question. |
+| `discord` | `enable` | `false` | Enables Discord delivery for the notification events above. |
+
+`.env` stores local notification secrets.
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `discord_webhook_url` | empty | Discord webhook URL used when `notification.ini` has `discord.enable = true`. |
 
 Rules:
 
@@ -112,8 +136,8 @@ Rules:
 
 ## Role Format
 
-Role files live under `roles/i18n/<lang>/`.
-Persona files live under `roles/i18n/<lang>/personas/`.
+Role files live under `i18n/roles/<lang>/`.
+Persona files live under `i18n/roles/<lang>/personas/`.
 
 Each role file must start with YAML frontmatter:
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# coordinator -> task_author 指示ファイルを生成する
+# Writes the coordinator -> task_author command file.
 
 set -euo pipefail
 

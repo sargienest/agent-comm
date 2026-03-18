@@ -30,6 +30,10 @@ cmd_validate_config() {
 
     [ -n "$AC_AGENT_WORKING_DIR" ] || ac_fail "runtime.working_dir is required."
     [ -d "$AC_AGENT_WORKING_DIR" ] || ac_fail "runtime.working_dir was not found: ${AC_AGENT_WORKING_DIR}"
+    if [ "$AC_NOTIFY_DISCORD_ENABLED" = "1" ] && ac_notifications_any_enabled; then
+        require_command curl
+        [ -n "$AC_DISCORD_WEBHOOK_URL" ] || ac_fail "discord_webhook_url is required when Discord notifications are enabled."
+    fi
     mkdir -p "$AC_ROLES_PATH/en/personas" "$AC_ROLES_PATH/ja/personas"
     while IFS= read -r runtime; do
         [ -n "$runtime" ] || continue
@@ -56,6 +60,19 @@ cmd_validate_config() {
     echo "session_name: ${AC_TMUX_SESSION_NAME}"
     echo "implementer_count: ${AC_SECTION_COUNT[implementer]}"
     echo "reviewer_count: ${AC_SECTION_COUNT[reviewer]}"
+    echo "notification_ini: ${AC_NOTIFICATION_INI_PATH}"
+    echo "env_file: ${AC_ENV_PATH}"
+    echo "notify_command_received: ${AC_NOTIFY_COMMAND_RECEIVED}"
+    echo "notify_research_completed: ${AC_NOTIFY_RESEARCH_COMPLETED}"
+    echo "notify_question_opened: ${AC_NOTIFY_QUESTION_OPENED}"
+    echo "notify_review_started: ${AC_NOTIFY_REVIEW_STARTED}"
+    echo "notify_review_requested_changes: ${AC_NOTIFY_REVIEW_REQUESTED_CHANGES}"
+    echo "notify_review_approved: ${AC_NOTIFY_REVIEW_APPROVED}"
+    echo "notify_workflow_completed: ${AC_NOTIFY_WORKFLOW_COMPLETED}"
+    echo "notify_implementation_task_created: ${AC_NOTIFY_IMPLEMENTATION_TASK_CREATED}"
+    echo "notify_implementer_started: ${AC_NOTIFY_IMPLEMENTER_STARTED}"
+    echo "notify_tester_started: ${AC_NOTIFY_TESTER_STARTED}"
+    echo "discord_notifications_enabled: ${AC_NOTIFY_DISCORD_ENABLED}"
     echo "ui_auto_start: ${AC_UI_AUTO_START}"
     echo "ui_port: ${AC_UI_PORT}"
     echo "ui_language: ${AC_UI_LANGUAGE}"

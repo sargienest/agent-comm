@@ -1,5 +1,5 @@
 #!/bin/bash
-# command の status を更新する
+# Updates the command status file.
 
 set -euo pipefail
 

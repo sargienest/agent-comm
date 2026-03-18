@@ -21,12 +21,14 @@
 2. `cd agent-comm` を実行します。
 3. `agent-comm.ini.example` を `agent-comm.ini` にコピーします。
 4. `agents.ini.example` を `agents.ini` にコピーします。
-5. `agent-comm.ini` を編集し、`runtime.working_dir` を対象プロジェクトまたは worktree に設定します。
-6. `agents.ini` を編集します。
-7. `working_dir` に設定した path が、使う runtime 側で trust 済みであることを確認します。
-8. 使う runtime (`claude` / `codex`) にログインします。
-9. `bin/agent-comm start` を実行します。
-10. `start` または `status` で表示された dashboard URL を開きます。
+5. 通知を使う場合は `notification.ini.example` を `notification.ini` に、`.env.example` を `.env` にコピーします。
+6. `agent-comm.ini` を編集し、`runtime.working_dir` を対象プロジェクトまたは worktree に設定します。
+7. `agents.ini` を編集します。
+8. 通知を有効にする場合は `notification.ini` と `.env` を編集します。
+9. `working_dir` に設定した path が、使う runtime 側で trust 済みであることを確認します。
+10. 使う runtime (`claude` / `codex`) にログインします。
+11. `bin/agent-comm start` を実行します。
+12. `start` または `status` で表示された dashboard URL を開きます。
 
 同梱の `agents.ini.example` は、初回起動で詰まりにくいよう Codex-only 構成にしています。混在構成にしたい場合は、使いたい section だけ `runtime = claude` へ切り替えてください。
 
@@ -78,9 +80,31 @@
 | `ui` | `port` | `43861` | local dashboard の待受ポートです。 |
 | `ui` | `open_browser` | `false` | 起動後に OS 既定ブラウザで dashboard URL を開きます。 |
 | `ui` | `language` | 空 | dashboard 専用 override です。空なら `runtime.language` を使います。翻訳がなければ `en`、さらに無ければ空文字へ fallback します。 |
-| `roles` | `extra_paths` | 空 | 追加 role i18n root をカンマ区切りで指定します。各 path は `agent-comm.ini` 基準で解決され、`<path>/<lang>/...` を持つ前提です。 |
+| `roles` | `extra_paths` | 空 | 追加 role root をカンマ区切りで指定します。各 path は `agent-comm.ini` 基準で解決され、`<path>/<lang>/...` を持つ前提です。 |
 
 `agents.ini` は agent 構成です。
+
+`notification.ini` は任意のライフサイクル通知設定です。
+
+| セクション | キー | 既定値 | 説明 |
+| --- | --- | --- | --- |
+| `notification` | `command_received` | `false` | dispatcher が新しい command を受け取り、`task_author` へ渡した時に通知します。 |
+| `notification` | `research_completed` | `false` | investigation / analyst の結果が揃い、`task_author` が次の分解に進める時に通知します。 |
+| `notification` | `implementation_task_created` | `false` | `task_author` が implementer 向け implementation task を書いた時に通知します。 |
+| `notification` | `implementer_started` | `false` | dispatcher が implementation / rework task を implementer に配布した時に通知します。 |
+| `notification` | `tester_started` | `false` | dispatcher が tester task を配布した時に通知します。 |
+| `notification` | `review_started` | `false` | 全体 review の fan-out が始まった時に通知します。 |
+| `notification` | `review_approved` | `false` | 全体 review が `approve` で完了した時に通知します。 |
+| `notification` | `review_requested_changes` | `false` | 全体 review が `requestchange` になり、rework task が作られた時に通知します。 |
+| `notification` | `workflow_completed` | `false` | command の全工程が正常完了した時に通知します。 |
+| `notification` | `question_opened` | `false` | worker がユーザー確認用の質問を作成した時に通知します。 |
+| `discord` | `enable` | `false` | 上記通知の Discord 配信を有効にします。 |
+
+`.env` には通知用のローカル secret を置きます。
+
+| キー | 既定値 | 説明 |
+| --- | --- | --- |
+| `discord_webhook_url` | 空 | `notification.ini` で `discord.enable = true` の時に使う Discord webhook URL です。 |
 
 ルール:
 
@@ -112,8 +136,8 @@
 
 ## Role Format
 
-role ファイルは `roles/i18n/<lang>/` に置きます。
-persona ファイルは `roles/i18n/<lang>/personas/` に置きます。
+role ファイルは `i18n/roles/<lang>/` に置きます。
+persona ファイルは `i18n/roles/<lang>/personas/` に置きます。
 
 各 role ファイルは YAML frontmatter から始める必要があります。
 
