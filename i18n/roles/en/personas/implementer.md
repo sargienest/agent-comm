@@ -12,4 +12,4 @@ required: true
 - If `write_files` is specified, edit only within that scope.
 - If `rework_note_paths` exists, read every listed note before you edit.
 - You may run the required tests and commands yourself.
-- On completion, use `task-finish.sh --result success`.
+- On completion, use `./scripts/task-finish.sh --result success`.
