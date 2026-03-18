@@ -2425,12 +2425,11 @@
 
         function chipLabel(value) {
             const normalized = normalizeToken(value, 'unknown');
-            const statusLabelMap = {
-                task_breakdown: t('chip.task_breakdown', {}, 'task_breakdown'),
-                research_dispatching: t('chip.research_dispatching', {}, 'research_dispatching'),
-            };
-
-            return statusLabelMap[normalized] || toText(value, 'unknown');
+            const translated = t(`chip.${normalized}`, {}, '');
+            if (translated !== '') {
+                return translated;
+            }
+            return toText(value, 'unknown');
         }
 
         function historyNearBottom(historyNode, threshold = 18) {

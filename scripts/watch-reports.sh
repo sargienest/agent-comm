@@ -832,6 +832,23 @@ worker_state_for_agent() {
         fi
     done
 
+    if [ "$(ac_agent_section "$worker_id")" = "reviewer" ]; then
+        local review_file review_parent_id parent_file
+        for review_file in "${REVIEW_DONE_DIR}"/*.yaml; do
+            [ -f "$review_file" ] || continue
+            assigned_to=$(ac_read_yaml_scalar "$review_file" "assigned_to")
+            [ "$assigned_to" = "$worker_id" ] || continue
+            review_parent_id=$(ac_read_yaml_scalar "$review_file" "review_parent_id")
+            [ -n "$review_parent_id" ] || continue
+            parent_file="${REVIEW_INFLIGHT_DIR}/${review_parent_id}.yaml"
+            [ -f "$parent_file" ] || continue
+            if [ "$(ac_read_yaml_scalar "$parent_file" "assigned_to")" = "reviewers" ]; then
+                printf 'inflight\n'
+                return 0
+            fi
+        done
+    fi
+
     printf 'idle\n'
 }
 

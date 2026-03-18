@@ -9,6 +9,7 @@ source "${SCRIPT_DIR}/agent-comm-common.sh"
 usage() {
     cat <<'USAGE'
 Usage:
+  bin/agent-comm init
   bin/agent-comm validate-config
   bin/agent-comm start
   bin/agent-comm stop
@@ -25,7 +26,74 @@ require_command() {
     command -v "$1" >/dev/null 2>&1 || ac_fail "Required command was not found: $1"
 }
 
+init_template_for_target() {
+    local target_name
+    target_name="$(basename "$1")"
+
+    case "$target_name" in
+        agent-comm.ini) printf '%s/agent-comm.ini.example\n' "$AC_REPO_ROOT" ;;
+        agents.ini) printf '%s/agents.ini.example\n' "$AC_REPO_ROOT" ;;
+        .env) printf '%s/.env.example\n' "$AC_REPO_ROOT" ;;
+        *)
+            ac_fail "Unknown init target: ${target_name}"
+            ;;
+    esac
+}
+
+missing_init_file_names() {
+    local target
+
+    for target in "$AC_INI_PATH" "$AC_AGENTS_INI_PATH" "$AC_ENV_PATH"; do
+        [ -f "$target" ] || basename "$target"
+    done
+}
+
+require_initialized_files() {
+    local missing=()
+    local joined=""
+
+    while IFS= read -r name; do
+        [ -n "$name" ] || continue
+        missing+=("$name")
+    done < <(missing_init_file_names)
+
+    [ "${#missing[@]}" -eq 0 ] && return 0
+
+    printf -v joined '%s, ' "${missing[@]}"
+    joined="${joined%, }"
+    ac_fail "Initialization is incomplete. Missing files: ${joined}. Run 'bin/agent-comm init' first."
+}
+
+cmd_init() {
+    local target template created_any=0 target_name
+
+    for target in "$AC_INI_PATH" "$AC_AGENTS_INI_PATH" "$AC_ENV_PATH"; do
+        target_name="$(basename "$target")"
+        if [ -f "$target" ]; then
+            echo "exists: ${target_name}"
+            continue
+        fi
+
+        template="$(init_template_for_target "$target")"
+        [ -f "$template" ] || ac_fail "Initialization template was not found: ${template}"
+        cp "$template" "$target"
+        if [ "$target_name" = ".env" ]; then
+            chmod 600 "$target" 2>/dev/null || true
+        fi
+        echo "created: ${target_name}"
+        created_any=1
+    done
+
+    if [ "$created_any" -eq 0 ]; then
+        echo "init: already complete"
+    else
+        echo "init: complete"
+    fi
+    echo "next: edit agent-comm.ini and set runtime.working_dir, then run bin/agent-comm start"
+}
+
 cmd_validate_config() {
+    require_initialized_files
     require_command tmux
 
     [ -n "$AC_AGENT_WORKING_DIR" ] || ac_fail "runtime.working_dir is required."
@@ -295,6 +363,7 @@ main() {
     shift || true
 
     case "$command" in
+        init) cmd_init "$@" ;;
         validate-config) cmd_validate_config "$@" ;;
         start) cmd_start "$@" ;;
         stop) cmd_stop "$@" ;;
