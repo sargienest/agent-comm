@@ -2800,23 +2800,10 @@
 
                 const wasVisible = !cardElements.card.hidden;
                 const isVisible = terminalGroupMatchesAgent(activeGroup, agent);
-                if (!isVisible && wasVisible && cardElements.history instanceof HTMLElement) {
-                    cardElements.lastVisibleScrollTop = cardElements.history.scrollTop;
-                }
                 cardElements.card.hidden = !isVisible;
                 if (isVisible) {
                     visibleCount += 1;
                     if (wasVisible === false && cardElements.history instanceof HTMLElement) {
-                        const savedScrollTop = Number(cardElements.lastVisibleScrollTop);
-                        if (
-                            cardElements.history.dataset.initialViewAligned === '1' &&
-                            Number.isFinite(savedScrollTop) &&
-                            savedScrollTop > 0
-                        ) {
-                            cardElements.history.scrollTop = savedScrollTop;
-                        }
-                    }
-                    if (cardElements.history instanceof HTMLElement && cardElements.history.dataset.initialViewAligned !== '1') {
                         setHistoryAutoFollow(cardElements.history, true);
                         needsInitialAlignment = true;
                     }
@@ -2860,6 +2847,14 @@
             }
 
             if (normalizedTab === 'terminal' || normalizedTab === 'dispatcher') {
+                if (normalizedTab === 'terminal') {
+                    scheduleVisibleTerminalHistoryAlignment();
+                } else if (dispatcherHistory instanceof HTMLElement) {
+                    setHistoryAutoFollow(dispatcherHistory, true);
+                    requestAnimationFrame(() => {
+                        dispatcherHistory.scrollTop = dispatcherHistory.scrollHeight;
+                    });
+                }
                 refreshTmuxSnapshot();
             }
         }
@@ -2951,7 +2946,6 @@
                 input,
                 feedback,
                 sendButton,
-                lastVisibleScrollTop: null,
             };
         }
 
@@ -3108,8 +3102,7 @@
             dispatcherTarget.textContent = toText(agent.tmux_target, '-');
             renderAgentStateChips(dispatcherChips, agent);
 
-            const translatedHistory = resolveTmuxHistoryText(agent);
-            const historyText = toText(translatedHistory, t('dispatcher_tab.empty'));
+            const historyText = toText(agent.history, t('dispatcher_tab.empty'));
             syncHistoryScroll(dispatcherHistory, historyText);
             dispatcherCaptured.textContent = t('tmux.captured', {
                 time: formatDateTime(agent.captured_at),
