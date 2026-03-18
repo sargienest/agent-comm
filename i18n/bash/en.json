@@ -53,6 +53,7 @@
   "notify.tester_started.title": "Tester started",
   "notify.workflow_completed.message": "command_id: {command_id}\nreview_cycle: {cycle_id}",
   "notify.workflow_completed.title": "Workflow completed",
+  "watch.command_status_reset_inflight": "command status reset to inflight: {command_id}",
   "reinject_role.error.invalid_target": "Unknown reinject target: {target}",
   "request_send.error.invalid_channel": "Error: --channel must be agent.",
   "request_send.error.message_required": "Error: --message is required.",

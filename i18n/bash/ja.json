@@ -53,6 +53,7 @@
   "notify.tester_started.title": "tester 開始",
   "notify.workflow_completed.message": "command_id: {command_id}\nreview_cycle: {cycle_id}",
   "notify.workflow_completed.title": "全工程完了",
+  "watch.command_status_reset_inflight": "command status を inflight に戻しました: {command_id}",
   "reinject_role.error.invalid_target": "不明な対象です: {target}",
   "request_send.error.invalid_channel": "エラー: --channel は agent を指定してください。",
   "request_send.error.message_required": "エラー: --message は必須です。",

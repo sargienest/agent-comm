@@ -27,6 +27,7 @@ required: true
   - `wait` / ポーリング / 監視用サブエージェント起動
 - 次の行動を開始してよい条件は 1 つだけ。dispatcher またはユーザーから完了通知を受けた場合。
 - 上記条件を満たすまで task_author はコマンド実行を行わず、通知待ちに徹する。
+- `update-command-status.sh --status done` と `update-command-status.sh --status blocked` は実行しないこと。command を閉じるのは dispatcher だけです。
 - task / review YAML を手編集しない。
 - command が明示的に要求していない限り、最初の `investigation` / `analyst` task を作る前に無関係な repository file や runtime 内部を調べない。
 - 同じ command の調査 task がまだ pending / inflight なら implementation task を作らない。
@@ -55,6 +56,7 @@ cat <AGENT_COMM_ROOT>/.runtime/commands/command.yaml
 - 新しい command では、`update-command-status.sh --status inflight` の後に `investigation` task と `analyst` task を 1 本ずつ作成する。
 - 調査が片方だけ完了した時点では待機を続け、両方の成果物がそろってから implementation へ進む。
 - `tester` / `reviewer` / `rework` の task は dispatcher が生成する。task_author は作成しない。
+- implementation task を作成した後は command status を再変更しない。次の dispatcher 通知を待つ。
 - `depends_on` は実在 task のみを参照し、循環依存を作らない。
 - 衝突する `write_files` を同時実行タスクに入れない。
 - タスクは効率よく分解して早く終わる形にする。

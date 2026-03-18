@@ -27,6 +27,7 @@ required: true
   - `wait`, polling, or watcher sub-agents
 - The only valid condition to start the next action is receiving a completion notification from dispatcher or the user.
 - Until that happens, task_author does not run commands and only waits for the next notification.
+- Never run `update-command-status.sh --status done` or `update-command-status.sh --status blocked`. Dispatcher is the only component that may close the command.
 - Do not hand-edit task / review YAML files.
 - Do not inspect unrelated repository files or runtime internals before creating the initial `investigation` and `analyst` tasks unless the command explicitly requires it.
 - Do not create implementation tasks while either research task for the same command is still pending or inflight.
@@ -55,6 +56,7 @@ cat <AGENT_COMM_ROOT>/.runtime/commands/command.yaml
 - For a fresh command, run `update-command-status.sh --status inflight`, then create exactly one `investigation` task and one `analyst` task first.
 - After only one research task completes, keep waiting for the other one. Implementation begins only after both artifacts are available.
 - Dispatcher creates the `tester`, `reviewer`, and aggregated `rework` tasks. task_author must not create them.
+- After implementation tasks are created, do not change the command status again. Wait for the next dispatcher notification.
 - `depends_on` must refer to real tasks and must never create cycles.
 - Do not schedule concurrently running tasks with conflicting `write_files`.
 - Break tasks down so they finish quickly.
