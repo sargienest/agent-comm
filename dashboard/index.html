@@ -1658,10 +1658,6 @@
                 flex-basis: 100%;
             }
 
-            .worker-agent-grid {
-                grid-template-columns: 1fr;
-            }
-
             .timeline-title {
                 white-space: normal;
                 overflow: visible;
@@ -2027,11 +2023,13 @@
 
     <script>
         const initialSnapshot = { generated_at: '', last_modified_at: '', root_exists: true, agent_comm_root: '', runtime: { session: '', started_at: '', coordinator: 'unknown', task_author: 'unknown', dispatcher: 'unknown', workers: [], review_cycle: { cycle_id: '', active: false, target_signature: '', last_approved_signature: '' } }, tasks: { counts: { pending: 0, inflight: 0, done: 0, blocked: 0 }, items: [] }, reviews: { counts: { pending: 0, inflight: 0, done: 0 }, items: [] }, events: [], command: { id: '', status: '', priority: '', assigned_to: '', created_at: '', updated_at: '', command: '' }, reports: [], checksum: '' };
-        const i18nCatalogEndpoint = '/api/i18n/catalog';
-        const snapshotEndpoint = '/api/snapshot';
-        const tmuxSnapshotEndpoint = '/api/tmux/snapshot';
-        const tmuxSendEndpoint = '/api/tmux/send';
-        const streamEndpoint = '/api/stream';
+        const dashboardBaseUrl = new URL('../', window.location.href);
+        const resolveDashboardUrl = (relativePath) => new URL(relativePath, dashboardBaseUrl).toString();
+        const i18nCatalogEndpoint = resolveDashboardUrl('api/i18n/catalog');
+        const snapshotEndpoint = resolveDashboardUrl('api/snapshot');
+        const tmuxSnapshotEndpoint = resolveDashboardUrl('api/tmux/snapshot');
+        const tmuxSendEndpoint = resolveDashboardUrl('api/tmux/send');
+        const streamEndpoint = resolveDashboardUrl('api/stream');
         const fallbackLanguageCode = 'en';
         const languageStorageKey = 'agent_comm_dashboard_lang';
 
@@ -2234,7 +2232,7 @@
             }
 
             try {
-                const response = await fetch(`/i18n/dashboard/${resolvedLanguage}.json`, {
+                const response = await fetch(resolveDashboardUrl(`i18n/dashboard/${resolvedLanguage}.json`), {
                     headers: {
                         Accept: 'application/json',
                     },
