@@ -1,5 +1,5 @@
 #!/bin/bash
-# worker完了処理: タスク状態更新 + ロック解放 + レポート生成
+# Worker completion handler: update task state, release locks, and write reports.
 
 set -euo pipefail
 
@@ -230,7 +230,7 @@ write_research_artifact() {
     artifact_dir=$(dirname "$artifact_path")
     mkdir -p "$artifact_dir"
 
-    # 既存成果物がある場合は、調査本文を保護するため上書きしない。
+    # Preserve an existing research artifact instead of overwriting it.
     if [ -f "$artifact_path" ] && [ -s "$artifact_path" ]; then
         ac_t_format "task_finish.info.artifact_preserved" "artifact_path=${artifact_path}" >&2
         return 0

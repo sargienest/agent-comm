@@ -1,11 +1,13 @@
 .runtime/
 agent-comm.ini
 agents.ini
+notification.ini
 
 # Local environment files
 .env
 .env.*
 !.env.example
+!notification.ini.example
 *.local
 
 # Python cache and test artifacts

@@ -266,7 +266,7 @@ def read_json_file(path: pathlib.Path) -> dict[str, Any]:
 
 def build_i18n_catalog(repo_root: pathlib.Path) -> dict[str, Any]:
     config = read_ini(repo_root)
-    i18n_dir = repo_root / "dashboard" / "i18n"
+    i18n_dir = repo_root / "i18n" / "dashboard"
     items: list[dict[str, str]] = []
 
     if i18n_dir.is_dir():
@@ -422,6 +422,7 @@ class SnapshotBuilder:
                         "command_id": data.get("command_id", ""),
                         "result_artifact_path": data.get("result_artifact_path", ""),
                         "rework_note_path": data.get("rework_note_path", ""),
+                        "rework_note_paths": data.get("rework_note_paths", []),
                         "blocked_reason": data.get("blocked_reason", ""),
                         "depends_on": depends_on if isinstance(depends_on, list) else [],
                         "write_files": data.get("write_files", []),
@@ -686,10 +687,26 @@ class AgentCommHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def send_json_file(self, path: pathlib.Path) -> None:
+        if not path.is_file():
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+
+        data = path.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/api/i18n/catalog":
             self.send_json(HTTPStatus.OK, build_i18n_catalog(self.repo_root))
+            return
+        if parsed.path.startswith("/i18n/dashboard/") and parsed.path.endswith(".json"):
+            file_name = pathlib.Path(parsed.path).name
+            self.send_json_file(self.repo_root / "i18n" / "dashboard" / file_name)
             return
         if parsed.path == "/api/snapshot":
             self.send_json(HTTPStatus.OK, self.builder.build_snapshot())

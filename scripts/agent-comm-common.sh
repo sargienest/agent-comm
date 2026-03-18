@@ -73,33 +73,60 @@ ac_i18n_register() {
     AC_I18N["$key"]="$value"
 }
 
+ac_merge_i18n_json() {
+    local file="$1"
+    local key value
+
+    [ -f "$file" ] || return 0
+
+    while IFS= read -r -d '' key && IFS= read -r -d '' value; do
+        [ -n "$key" ] || continue
+        AC_I18N["$key"]="$value"
+    done < <(
+        python3 - "$file" <<'PY'
+import json
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+try:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    sys.exit(0)
+
+if not isinstance(payload, dict):
+    sys.exit(0)
+
+buffer = sys.stdout.buffer
+for key in sorted(payload):
+    value = payload[key]
+    if isinstance(value, str):
+        buffer.write(key.encode("utf-8"))
+        buffer.write(b"\0")
+        buffer.write(value.encode("utf-8"))
+        buffer.write(b"\0")
+PY
+    )
+}
+
 ac_load_i18n() {
     local i18n_dir base_lang file
 
     i18n_dir="${AC_REPO_ROOT}/i18n/bash"
     declare -gA AC_I18N=()
 
-    file="${i18n_dir}/en.sh"
-    if [ -f "$file" ]; then
-        # shellcheck disable=SC1090
-        source "$file"
-    fi
+    file="${i18n_dir}/en.json"
+    ac_merge_i18n_json "$file"
 
     base_lang="${AC_RUNTIME_LANGUAGE%%-*}"
     if [ -n "$base_lang" ] && [ "$base_lang" != "en" ]; then
-        file="${i18n_dir}/${base_lang}.sh"
-        if [ -f "$file" ]; then
-            # shellcheck disable=SC1090
-            source "$file"
-        fi
+        file="${i18n_dir}/${base_lang}.json"
+        ac_merge_i18n_json "$file"
     fi
 
     if [ -n "${AC_RUNTIME_LANGUAGE:-}" ] && [ "$AC_RUNTIME_LANGUAGE" != "$base_lang" ] && [ "$AC_RUNTIME_LANGUAGE" != "en" ]; then
-        file="${i18n_dir}/${AC_RUNTIME_LANGUAGE}.sh"
-        if [ -f "$file" ]; then
-            # shellcheck disable=SC1090
-            source "$file"
-        fi
+        file="${i18n_dir}/${AC_RUNTIME_LANGUAGE}.json"
+        ac_merge_i18n_json "$file"
     fi
 }
 
@@ -227,6 +254,85 @@ ac_agents_ini_get() {
     local key="$2"
     local default_value="${3:-}"
     ac_ini_get_from_path "$(ac_agents_ini_path)" "$section" "$key" "$default_value"
+}
+
+ac_notification_ini_path() {
+    if [ -n "${AC_NOTIFICATION_INI_PATH:-}" ]; then
+        printf '%s\n' "$AC_NOTIFICATION_INI_PATH"
+        return
+    fi
+
+    printf '%s/notification.ini\n' "$(ac_repo_root)"
+}
+
+ac_env_path() {
+    if [ -n "${AC_ENV_PATH:-}" ]; then
+        printf '%s\n' "$AC_ENV_PATH"
+        return
+    fi
+
+    printf '%s/.env\n' "$(ac_repo_root)"
+}
+
+ac_notification_ini_get() {
+    local section="$1"
+    local key="$2"
+    local default_value="${3:-}"
+    ac_ini_get_from_path "$(ac_notification_ini_path)" "$section" "$key" "$default_value"
+}
+
+ac_env_get_from_path() {
+    local env_file="$1"
+    local key="$2"
+    local default_value="${3:-}"
+
+    if [ ! -f "$env_file" ]; then
+        printf '%s\n' "$default_value"
+        return
+    fi
+
+    awk -F '=' -v target_key="$key" -v fallback="$default_value" '
+        BEGIN {
+            found = 0
+        }
+        /^[[:space:]]*[#;]/ {
+            next
+        }
+        {
+            line = $0
+            sub(/\r$/, "", line)
+            if (line !~ /^[[:space:]]*[A-Za-z0-9_.-]+[[:space:]]*=/) {
+                next
+            }
+            key = line
+            sub(/[[:space:]]*=.*$/, "", key)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+            if (key != target_key) {
+                next
+            }
+
+            value = line
+            sub(/^[^=]*=/, "", value)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+            if (value ~ /^".*"$/ || value ~ /^\047.*\047$/) {
+                value = substr(value, 2, length(value) - 2)
+            }
+            print value
+            found = 1
+            exit
+        }
+        END {
+            if (found == 0) {
+                print fallback
+            }
+        }
+    ' "$env_file"
+}
+
+ac_env_get() {
+    local key="$1"
+    local default_value="${2:-}"
+    ac_env_get_from_path "$(ac_env_path)" "$key" "$default_value"
 }
 
 ac_parse_bool() {
@@ -429,6 +535,8 @@ ac_load_config() {
     AC_REPO_ROOT="$(ac_repo_root)"
     AC_INI_PATH="$(ac_ini_path)"
     AC_AGENTS_INI_PATH="$(ac_agents_ini_path)"
+    AC_NOTIFICATION_INI_PATH="$(ac_notification_ini_path)"
+    AC_ENV_PATH="$(ac_env_path)"
     AC_RUNTIME_ROOT="${AC_REPO_ROOT}/.runtime"
 
     configured_working_dir="$(ac_trim "$(ac_ini_get runtime working_dir '')")"
@@ -464,7 +572,27 @@ ac_load_config() {
     fi
     [ -n "$AC_UI_LANGUAGE" ] || AC_UI_LANGUAGE="en"
 
-    AC_ROLES_PATH="${AC_REPO_ROOT}/roles/i18n"
+    AC_NOTIFY_COMMAND_RECEIVED="$(ac_parse_bool "$(ac_notification_ini_get notification command_received false)")"
+    AC_NOTIFY_RESEARCH_COMPLETED="$(ac_parse_bool "$(ac_notification_ini_get notification research_completed false)")"
+    AC_NOTIFY_QUESTION_OPENED="$(ac_parse_bool "$(ac_notification_ini_get notification question_opened false)")"
+    AC_NOTIFY_REVIEW_STARTED="$(ac_parse_bool "$(ac_notification_ini_get notification review_started false)")"
+    AC_NOTIFY_REVIEW_REQUESTED_CHANGES="$(ac_parse_bool "$(ac_notification_ini_get notification review_requested_changes false)")"
+    AC_NOTIFY_REVIEW_APPROVED="$(ac_parse_bool "$(ac_notification_ini_get notification review_approved false)")"
+    AC_NOTIFY_WORKFLOW_COMPLETED="$(ac_parse_bool "$(ac_notification_ini_get notification workflow_completed "$(ac_notification_ini_get notification completed false)")")"
+    AC_NOTIFY_IMPLEMENTATION_TASK_CREATED="$(ac_parse_bool "$(ac_notification_ini_get notification implementation_task_created "$(ac_notification_ini_get notification task_author_created_implementation false)")")"
+    AC_NOTIFY_IMPLEMENTER_STARTED="$(ac_parse_bool "$(ac_notification_ini_get notification implementer_started false)")"
+    AC_NOTIFY_TESTER_STARTED="$(ac_parse_bool "$(ac_notification_ini_get notification tester_started false)")"
+    AC_NOTIFY_DISCORD_ENABLED="$(ac_parse_bool "$(ac_notification_ini_get discord enable false)")"
+
+    AC_DISCORD_WEBHOOK_URL="$(ac_trim "${DISCORD_WEBHOOK_URL:-}")"
+    if [ -z "$AC_DISCORD_WEBHOOK_URL" ]; then
+        AC_DISCORD_WEBHOOK_URL="$(ac_trim "${discord_webhook_url:-}")"
+    fi
+    if [ -z "$AC_DISCORD_WEBHOOK_URL" ]; then
+        AC_DISCORD_WEBHOOK_URL="$(ac_trim "$(ac_env_get discord_webhook_url '')")"
+    fi
+
+    AC_ROLES_PATH="${AC_REPO_ROOT}/i18n/roles"
     AC_ROLES_EXTRA_PATHS_RAW="$(ac_ini_get roles extra_paths '')"
 
     declare -ga AC_ROLE_SEARCH_PATHS=()
@@ -522,6 +650,123 @@ ac_load_config() {
     ROLE_PERSONAS_MARKDOWN_FILE="${ROLES_RUNTIME_DIR}/personas.md"
 
     ac_load_agent_topology
+}
+
+ac_notifications_any_enabled() {
+    [ "${AC_NOTIFY_COMMAND_RECEIVED:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_RESEARCH_COMPLETED:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_QUESTION_OPENED:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_REVIEW_STARTED:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_REVIEW_REQUESTED_CHANGES:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_REVIEW_APPROVED:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_WORKFLOW_COMPLETED:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_IMPLEMENTATION_TASK_CREATED:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_IMPLEMENTER_STARTED:-0}" = "1" ] ||
+        [ "${AC_NOTIFY_TESTER_STARTED:-0}" = "1" ]
+}
+
+ac_notification_flag_enabled() {
+    local flag="$1"
+
+    case "$flag" in
+        command_received)
+            [ "${AC_NOTIFY_COMMAND_RECEIVED:-0}" = "1" ]
+            ;;
+        research_completed)
+            [ "${AC_NOTIFY_RESEARCH_COMPLETED:-0}" = "1" ]
+            ;;
+        question_opened)
+            [ "${AC_NOTIFY_QUESTION_OPENED:-0}" = "1" ]
+            ;;
+        review_started)
+            [ "${AC_NOTIFY_REVIEW_STARTED:-0}" = "1" ]
+            ;;
+        review_requested_changes)
+            [ "${AC_NOTIFY_REVIEW_REQUESTED_CHANGES:-0}" = "1" ]
+            ;;
+        review_approved)
+            [ "${AC_NOTIFY_REVIEW_APPROVED:-0}" = "1" ]
+            ;;
+        workflow_completed)
+            [ "${AC_NOTIFY_WORKFLOW_COMPLETED:-0}" = "1" ]
+            ;;
+        implementation_task_created)
+            [ "${AC_NOTIFY_IMPLEMENTATION_TASK_CREATED:-0}" = "1" ]
+            ;;
+        implementer_started)
+            [ "${AC_NOTIFY_IMPLEMENTER_STARTED:-0}" = "1" ]
+            ;;
+        tester_started)
+            [ "${AC_NOTIFY_TESTER_STARTED:-0}" = "1" ]
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+ac_notify_discord() {
+    local title="$1"
+    local message="$2"
+    local timestamp content escaped payload
+
+    [ "${AC_NOTIFY_DISCORD_ENABLED:-0}" = "1" ] || return 0
+    [ -n "${AC_DISCORD_WEBHOOK_URL:-}" ] || return 1
+    command -v curl >/dev/null 2>&1 || return 1
+
+    timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    if [ -n "$title" ]; then
+        content=$(printf '[%s] %s\n%s' "$timestamp" "$title" "$message")
+    else
+        content=$(printf '[%s] %s' "$timestamp" "$message")
+    fi
+
+    escaped="$(printf '%s' "$content" | sed ':a;N;$!ba;s/\\/\\\\/g;s/"/\\"/g;s/\r//g;s/\n/\\n/g')"
+    payload="{\"content\":\"${escaped}\"}"
+
+    curl --fail --silent --show-error \
+        --connect-timeout 5 \
+        --max-time 10 \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "$AC_DISCORD_WEBHOOK_URL" >/dev/null
+}
+
+ac_notify_if_enabled() {
+    local flag="$1"
+    local title="$2"
+    local message="$3"
+
+    ac_notification_flag_enabled "$flag" || return 0
+    ac_notify_discord "$title" "$message"
+}
+
+ac_notify_if_enabled_logged() {
+    local flag="$1"
+    local title="$2"
+    local message="$3"
+    local context="${4:-}"
+    local error_output=""
+
+    if error_output="$(ac_notify_if_enabled "$flag" "$title" "$message" 2>&1)"; then
+        return 0
+    fi
+
+    error_output="$(ac_trim "$error_output")"
+    [ -n "$error_output" ] || error_output="$(ac_t 'notify.error.unknown_reason')"
+
+    if [ -n "$context" ]; then
+        ac_log "$(ac_t_format 'notify.error.delivery_failed.with_context' \
+            "flag=${flag}" \
+            "context=${context}" \
+            "error=${error_output}")"
+    else
+        ac_log "$(ac_t_format 'notify.error.delivery_failed' \
+            "flag=${flag}" \
+            "error=${error_output}")"
+    fi
+
+    return 0
 }
 
 ac_role_language_score() {

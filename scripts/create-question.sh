@@ -1,5 +1,5 @@
 #!/bin/bash
-# worker用: ユーザー確認質問を作成し、タスクを blocked へ移す
+# Creates a user-facing question for a worker and moves the task to blocked.
 
 set -euo pipefail
 

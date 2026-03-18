@@ -1,5 +1,5 @@
 #!/bin/bash
-# 非dispatcher用: 送信要求イベントを outbox に積む
+# Queues a send request event into the outbox.
 
 set -euo pipefail
 

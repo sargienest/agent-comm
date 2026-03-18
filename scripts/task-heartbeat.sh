@@ -1,5 +1,5 @@
 #!/bin/bash
-# inflight タスクの updated_at を更新する
+# Updates updated_at for an inflight task.
 
 set -euo pipefail
 
