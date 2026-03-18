@@ -2,7 +2,7 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` is a bash-first multi-agent runner for Codex / Claude setups with per-role runtime selection. Clone it wherever you want, point `working_dir` at the target project or worktree, copy `agent-comm.ini.example` and `agents.ini.example`, edit the config files, then use `start` to launch tmux agents and the local dashboard without scattering runtime files into the target project root.
+`agent-comm` is a bash-first multi-agent runner that orchestrates coordinator, task author, dispatcher, and worker roles in tmux. It supports per-role runtime selection for Codex / Claude, keeps all runtime state inside `.runtime/`, and ships with a local dashboard for live status, task flow, and terminal views.
 
 ![Dashboard overview](./docs/readme/dashboard-overview.png)
 
@@ -17,24 +17,42 @@
 
 ## Quick Start
 
-1. Run `git clone https://github.com/sargienest/agent-comm.git && cd agent-comm`.
-2. Copy `agent-comm.ini.example` to `agent-comm.ini`.
-3. Copy `agents.ini.example` to `agents.ini`.
-4. If you want notifications, copy `.env.example` to `.env`.
-5. Edit `agent-comm.ini` and set `runtime.working_dir` to the target project or worktree.
-6. If you want notifications, enable the flags you need under `[notification]`. For Discord delivery, also enable `[discord].enable`.
-7. Edit `agents.ini`.
-8. If Discord notifications are enabled, set the webhook value in `.env` using the env var name referenced by `[discord].webhook_url`.
-9. Make sure the `working_dir` path is already trusted by the runtimes you use.
-10. Log in to the runtimes you use.
-11. Run `bin/agent-comm start`.
-12. Open the dashboard URL printed by `start` or `status`.
+1. Clone the repo and enter it.
 
-The shipped `agents.ini.example` stays Codex-only so the first launch works with one authenticated runtime. Switch any section to `claude` when you want a mixed topology.
+```bash
+git clone https://github.com/sargienest/agent-comm.git
+cd agent-comm
+```
+
+2. Generate the local config files.
+
+```bash
+bin/agent-comm init
+```
+
+3. Edit `agent-comm.ini` and set `runtime.working_dir` to the target project or worktree.
+4. Make sure that `working_dir` is already trusted by the runtimes you use, then log in to those runtimes.
+5. Start `agent-comm`.
+
+```bash
+bin/agent-comm start
+```
+
+6. Open the dashboard URL printed by `start` or `status`.
+
+By default, `init` gives you:
+
+- a Codex-only topology from `agents.ini.example`
+- `ui.auto_start = true`
+- `ui.open_browser = true`
+- notifications disabled
+
+Use the Config section below when you want to change runtimes, worker counts, notifications, or dashboard behavior.
 
 ## Public Commands
 
 - `bin/agent-comm validate-config`
+- `bin/agent-comm init`
 - `bin/agent-comm start`
 - `bin/agent-comm stop`
 - `bin/agent-comm restart <coordinator|task_author|dispatcher|investigation|analyst|tester|implementers|reviewers|workers|implementerN|reviewerN|all>`
@@ -67,7 +85,7 @@ All generated data stays inside `agent-comm/.runtime/`.
 
 ## Config
 
-`agent-comm.ini` controls shared runtime behavior and optional notifications.
+`agent-comm.ini` controls shared runtime behavior and optional notifications. `bin/agent-comm init` creates it from `agent-comm.ini.example` only when the file is missing.
 
 | Section | Key | Default | Description |
 | --- | --- | --- | --- |
@@ -78,7 +96,7 @@ All generated data stays inside `agent-comm/.runtime/`.
 | `tmux` | `session_name` | empty | tmux session name. If blank, `agent-comm` generates a per-repo unique name automatically. |
 | `ui` | `auto_start` | `true` | Starts the local dashboard automatically when `start` runs. `false` still allows `bin/agent-comm dashboard start`. |
 | `ui` | `port` | `43861` | Local dashboard port. |
-| `ui` | `open_browser` | `false` | Opens the dashboard URL in the OS default browser after startup. |
+| `ui` | `open_browser` | `true` | Opens the dashboard URL in the OS default browser after startup. |
 | `ui` | `language` | empty | Optional dashboard-only override. If blank, the dashboard uses `runtime.language`. Missing translations fall back to `en`, then to empty strings. |
 | `roles` | `extra_paths` | empty | Comma-separated extra role roots. Each path is resolved from `agent-comm.ini` and should contain `<path>/<lang>/...`. |
 | `notification` | `command_received` | `false` | Sends a notification when dispatcher accepts a new command and forwards it to `task_author`. |
@@ -94,9 +112,9 @@ All generated data stays inside `agent-comm/.runtime/`.
 | `discord` | `enable` | `false` | Enables Discord delivery for the notification events above. |
 | `discord` | `webhook_url` | `DISCORD_WEBHOOK_URL` | Env var name to resolve from the shell or `.env`. This is a variable name, not the webhook URL itself. |
 
-`agents.ini` controls the agent topology.
+`agents.ini` controls the agent topology. `bin/agent-comm init` creates it from `agents.ini.example` only when the file is missing.
 
-`.env` stores local notification secrets.
+`.env` stores local notification secrets. `bin/agent-comm init` creates it from `.env.example` only when the file is missing.
 
 | Key | Default | Description |
 | --- | --- | --- |

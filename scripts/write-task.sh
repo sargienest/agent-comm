@@ -297,7 +297,6 @@ trap 'rm -f "$existing_ids_tmp" "$edges_tmp" "$tmp_file"' EXIT
     ac_write_yaml_list_block "write_files" "${WRITE_FILES[@]}"
     ac_write_yaml_list_block "read_files" "${READ_FILES[@]}"
     echo "result_artifact_path: \"$(escape_yaml "$RESULT_ARTIFACT_PATH")\""
-    echo "rework_note_path: \"\""
     ac_write_yaml_list_block "rework_note_paths"
     echo "exclusive_group: \"$(escape_yaml "$EXCLUSIVE_GROUP")\""
     echo "status: \"pending\""

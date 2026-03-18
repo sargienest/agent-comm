@@ -421,7 +421,6 @@ class SnapshotBuilder:
                         "assigned_to": data.get("assigned_to", ""),
                         "command_id": data.get("command_id", ""),
                         "result_artifact_path": data.get("result_artifact_path", ""),
-                        "rework_note_path": data.get("rework_note_path", ""),
                         "rework_note_paths": data.get("rework_note_paths", []),
                         "blocked_reason": data.get("blocked_reason", ""),
                         "depends_on": depends_on if isinstance(depends_on, list) else [],

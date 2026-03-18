@@ -12,7 +12,7 @@ session_name =
 [ui]
 auto_start = true
 port = 43861
-open_browser = false
+open_browser = true
 language =
 
 [roles]

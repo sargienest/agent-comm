@@ -2,7 +2,7 @@
 
 [English](./README.md) | [日本語](./README.ja.md)
 
-`agent-comm` は、Codex / Claude を role ごとに切り替えられる bash-first なマルチエージェントランナーです。clone 先は任意で、`working_dir` を対象プロジェクトや worktree に向けて設定し、`agent-comm.ini.example` と `agents.ini.example` をコピーして設定を編集してから `start` を実行すると、runtime ファイルを対象プロジェクトルートへ散らさずに tmux agents とローカル dashboard を起動できます。
+`agent-comm` は、coordinator、task author、dispatcher、worker 群を tmux 上で動かす bash-first なマルチエージェントランナーです。Codex / Claude の role ごとの切り替えに対応し、runtime 状態は `.runtime/` に閉じ込め、ライブの状態・タスク進行・端末表示をローカル dashboard で確認できます。
 
 ![Dashboard overview](./docs/readme/dashboard-overview-ja.png)
 
@@ -17,24 +17,42 @@
 
 ## Quick Start
 
-1. `git clone https://github.com/sargienest/agent-comm.git && cd agent-comm` を実行します。
-2. `agent-comm.ini.example` を `agent-comm.ini` にコピーします。
-3. `agents.ini.example` を `agents.ini` にコピーします。
-4. 通知を使う場合は `.env.example` を `.env` にコピーします。
-5. `agent-comm.ini` を編集し、`runtime.working_dir` を対象プロジェクトまたは worktree に設定します。
-6. 通知を使う場合は `[notification]` の必要なフラグを有効にし、Discord 配信を使うなら `[discord].enable` も有効にします。
-7. `agents.ini` を編集します。
-8. Discord 通知を有効にした場合は、`[discord].webhook_url` が参照する env var 名に合わせて `.env` に webhook 値を設定します。
-9. `working_dir` に設定した path が、使う runtime 側で trust 済みであることを確認します。
-10. 使う runtime (`claude` / `codex`) にログインします。
-11. `bin/agent-comm start` を実行します。
-12. `start` または `status` で表示された dashboard URL を開きます。
+1. リポジトリを clone して入ります。
 
-同梱の `agents.ini.example` は、初回起動で詰まりにくいよう Codex-only 構成にしています。混在構成にしたい場合は、使いたい section だけ `runtime = claude` へ切り替えてください。
+```bash
+git clone https://github.com/sargienest/agent-comm.git
+cd agent-comm
+```
+
+2. ローカル設定ファイルを生成します。
+
+```bash
+bin/agent-comm init
+```
+
+3. `agent-comm.ini` を編集し、`runtime.working_dir` を対象プロジェクトまたは worktree に設定します。
+4. `working_dir` に指定した path が、使う runtime 側で trust 済みであることを確認し、その runtime にログインします。
+5. `agent-comm` を起動します。
+
+```bash
+bin/agent-comm start
+```
+
+6. `start` または `status` で表示された dashboard URL を開きます。
+
+`init` 直後の既定値はこうです。
+
+- `agents.ini.example` 由来の Codex-only 構成
+- `ui.auto_start = true`
+- `ui.open_browser = true`
+- 通知はすべて無効
+
+runtime、worker 数、通知、dashboard 挙動を変えたいときは下の Config を見てください。
 
 ## Public Commands
 
 - `bin/agent-comm validate-config`
+- `bin/agent-comm init`
 - `bin/agent-comm start`
 - `bin/agent-comm stop`
 - `bin/agent-comm restart <coordinator|task_author|dispatcher|investigation|analyst|tester|implementers|reviewers|workers|implementerN|reviewerN|all>`
@@ -67,7 +85,7 @@
 
 ## Config
 
-`agent-comm.ini` は共通 runtime 設定と任意の通知設定です。
+`agent-comm.ini` は共通 runtime 設定と任意の通知設定です。`bin/agent-comm init` は file が無い場合だけ `agent-comm.ini.example` から生成します。
 
 | セクション | キー | 既定値 | 説明 |
 | --- | --- | --- | --- |
@@ -78,7 +96,7 @@
 | `tmux` | `session_name` | 空 | tmux session 名です。空なら repo path 由来の一意名を自動生成します。 |
 | `ui` | `auto_start` | `true` | `start` 実行時に local dashboard を自動起動します。`false` でも `bin/agent-comm dashboard start` は使えます。 |
 | `ui` | `port` | `43861` | local dashboard の待受ポートです。 |
-| `ui` | `open_browser` | `false` | 起動後に OS 既定ブラウザで dashboard URL を開きます。 |
+| `ui` | `open_browser` | `true` | 起動後に OS 既定ブラウザで dashboard URL を開きます。 |
 | `ui` | `language` | 空 | dashboard 専用 override です。空なら `runtime.language` を使います。翻訳がなければ `en`、さらに無ければ空文字へ fallback します。 |
 | `roles` | `extra_paths` | 空 | 追加 role root をカンマ区切りで指定します。各 path は `agent-comm.ini` 基準で解決され、`<path>/<lang>/...` を持つ前提です。 |
 | `notification` | `command_received` | `false` | dispatcher が新しい command を受け取り、`task_author` へ渡した時に通知します。 |
@@ -94,9 +112,9 @@
 | `discord` | `enable` | `false` | 上記通知の Discord 配信を有効にします。 |
 | `discord` | `webhook_url` | `DISCORD_WEBHOOK_URL` | shell 環境変数または `.env` から解決する env var 名です。Webhook URL 本体ではありません。 |
 
-`agents.ini` は agent 構成です。
+`agents.ini` は agent 構成です。`bin/agent-comm init` は file が無い場合だけ `agents.ini.example` から生成します。
 
-`.env` には通知用のローカル secret を置きます。
+`.env` には通知用のローカル secret を置きます。`bin/agent-comm init` は file が無い場合だけ `.env.example` から生成します。
 
 | キー | 既定値 | 説明 |
 | --- | --- | --- |

@@ -664,17 +664,22 @@ enforce_command_inflight_until_review_complete() {
 create_aggregated_rework_task() {
     local cycle_id="$1"
     local command_id="$2"
-    local note_path="$3"
+    local note_paths_string="$3"
     shift 3 || true
     local -a depends_args=("$@")
+    local -a note_paths=()
     local task_id task_file description
+
+    if [ -n "$note_paths_string" ]; then
+        mapfile -t note_paths <<<"$note_paths_string"
+    fi
 
     CREATED_REWORK_TASK_FILE=""
     [ -n "$command_id" ] || command_id="$(ac_read_yaml_scalar "${COMMANDS_DIR}/command.yaml" "id")"
     [ -n "$command_id" ] || return 1
 
     task_id="review_cycle${cycle_id}_rework_$(date '+%Y%m%d_%H%M%S')"
-    if [ -n "$note_path" ]; then
+    if [ "${#note_paths[@]}" -gt 0 ]; then
         description="$(ac_t_format 'task.review_rework.description.with_note' "cycle_id=${cycle_id}")"
     else
         description="$(ac_t_format 'task.review_rework.description.without_note' "cycle_id=${cycle_id}")"
@@ -690,8 +695,8 @@ create_aggregated_rework_task() {
         "${depends_args[@]}" >/dev/null
 
     task_file=$(ac_find_task_file_by_id "$task_id")
-    if [ -n "$note_path" ]; then
-        ac_set_yaml_scalar "$task_file" "rework_note_path" "$note_path"
+    if [ "${#note_paths[@]}" -gt 0 ]; then
+        ac_replace_yaml_list_block "$task_file" "rework_note_paths" "${note_paths[@]}"
     fi
     CREATED_REWORK_TASK_FILE="$task_file"
 
@@ -831,6 +836,23 @@ worker_state_for_agent() {
             return 0
         fi
     done
+
+    if [ "$(ac_agent_section "$worker_id")" = "reviewer" ]; then
+        local review_file review_parent_id parent_file
+        for review_file in "${REVIEW_DONE_DIR}"/*.yaml; do
+            [ -f "$review_file" ] || continue
+            assigned_to=$(ac_read_yaml_scalar "$review_file" "assigned_to")
+            [ "$assigned_to" = "$worker_id" ] || continue
+            review_parent_id=$(ac_read_yaml_scalar "$review_file" "review_parent_id")
+            [ -n "$review_parent_id" ] || continue
+            parent_file="${REVIEW_INFLIGHT_DIR}/${review_parent_id}.yaml"
+            [ -f "$parent_file" ] || continue
+            if [ "$(ac_read_yaml_scalar "$parent_file" "assigned_to")" = "reviewers" ]; then
+                printf 'inflight\n'
+                return 0
+            fi
+        done
+    fi
 
     printf 'idle\n'
 }
@@ -1124,7 +1146,7 @@ finalize_review_groups() {
                 fi
                 child_note_path="$(create_requestchange_note "$child_id" "$child_note_body")"
                 requestchange_note_paths+=("$child_note_path")
-                aggregate_body+="rework_note_path: ${child_note_path}"$'\n'
+                aggregate_body+="requestchange_note: ${child_note_path}"$'\n'
             fi
             aggregate_body+="summary:"$'\n'"${summary:-"(empty)"}"$'\n'
             aggregate_body+="details:"$'\n'"${details:-"(empty)"}"$'\n'
@@ -1140,17 +1162,17 @@ finalize_review_groups() {
         cycle_id="$(ac_read_yaml_scalar "$parent_file" "review_cycle_id")"
         reviewer_count="${#reviewer_ids[@]}"
         note_path=""
+        all_rework_note_paths=()
 
         if [ "$any_requestchange" -eq 1 ]; then
             note_path="$(create_review_group_note "$parent_id" "$aggregate_body")"
-            if ! create_aggregated_rework_task "$cycle_id" "$command_id" "$note_path" "${review_depends[@]}" "${target_depends[@]}"; then
+            all_rework_note_paths=("$note_path" "${requestchange_note_paths[@]}")
+            if ! create_aggregated_rework_task "$cycle_id" "$command_id" "$(printf '%s\n' "${all_rework_note_paths[@]}")" "${review_depends[@]}" "${target_depends[@]}"; then
                 ac_log "❌ aggregated rework task creation failed: cycle=${cycle_id}"
                 continue
             fi
-            ac_set_yaml_scalar "$parent_file" "rework_note_path" "$note_path"
-            ac_replace_yaml_list_block "$parent_file" "rework_note_paths" "${requestchange_note_paths[@]}"
+            ac_replace_yaml_list_block "$parent_file" "rework_note_paths" "${all_rework_note_paths[@]}"
             if [ -n "$CREATED_REWORK_TASK_FILE" ] && [ -f "$CREATED_REWORK_TASK_FILE" ]; then
-                ac_replace_yaml_list_block "$CREATED_REWORK_TASK_FILE" "rework_note_paths" "${requestchange_note_paths[@]}"
                 ac_notify_if_enabled_logged \
                     "review_requested_changes" \
                     "$(ac_t 'notify.review_requested_changes.title')" \

@@ -423,6 +423,29 @@ ac_agent_section_label() {
     esac
 }
 
+ac_reset_agent_topology() {
+    declare -ga AC_AGENT_IDS=()
+    declare -ga AC_WORKER_AGENT_IDS=()
+    declare -gA AC_AGENT_SECTION_BY_ID=()
+    declare -gA AC_AGENT_RUNTIME_BY_ID=()
+    declare -gA AC_AGENT_MODEL_BY_ID=()
+    declare -gA AC_AGENT_LABEL_BY_ID=()
+    declare -gA AC_AGENT_KIND_BY_ID=()
+    declare -gA AC_AGENT_PERSONA_BY_ID=()
+    declare -gA AC_SECTION_AGENT_IDS=()
+    declare -gA AC_SECTION_RUNTIME=()
+    declare -gA AC_SECTION_MODEL=()
+    declare -gA AC_SECTION_COUNT=()
+
+    local section
+    for section in "${AC_REQUIRED_AGENT_SECTIONS[@]}"; do
+        AC_SECTION_AGENT_IDS["$section"]=""
+        AC_SECTION_RUNTIME["$section"]=""
+        AC_SECTION_MODEL["$section"]=""
+        AC_SECTION_COUNT["$section"]=0
+    done
+}
+
 ac_append_section_agent_id() {
     local section="$1"
     local agent_id="$2"
@@ -436,20 +459,8 @@ ac_load_agent_topology() {
     local section runtime model count_raw count label index agent_id
 
     AC_AGENTS_INI_PATH="$(ac_agents_ini_path)"
-    [ -f "$AC_AGENTS_INI_PATH" ] || ac_fail "agents.ini was not found: ${AC_AGENTS_INI_PATH}"
-
-    declare -ga AC_AGENT_IDS=()
-    declare -ga AC_WORKER_AGENT_IDS=()
-    declare -gA AC_AGENT_SECTION_BY_ID=()
-    declare -gA AC_AGENT_RUNTIME_BY_ID=()
-    declare -gA AC_AGENT_MODEL_BY_ID=()
-    declare -gA AC_AGENT_LABEL_BY_ID=()
-    declare -gA AC_AGENT_KIND_BY_ID=()
-    declare -gA AC_AGENT_PERSONA_BY_ID=()
-    declare -gA AC_SECTION_AGENT_IDS=()
-    declare -gA AC_SECTION_RUNTIME=()
-    declare -gA AC_SECTION_MODEL=()
-    declare -gA AC_SECTION_COUNT=()
+    ac_reset_agent_topology
+    [ -f "$AC_AGENTS_INI_PATH" ] || return 0
 
     for section in "${AC_REQUIRED_AGENT_SECTIONS[@]}"; do
         runtime="$(ac_normalize_runtime "$(ac_agents_ini_get "$section" runtime '')")"
@@ -545,7 +556,7 @@ ac_load_config() {
     AC_UI_AUTO_START="$(ac_parse_bool "$(ac_ini_get ui auto_start true)")"
     AC_UI_PORT="$(ac_ini_get ui port 43861)"
     [[ "$AC_UI_PORT" =~ ^[0-9]+$ ]] || ac_fail "ui.port must be numeric."
-    AC_UI_OPEN_BROWSER="$(ac_parse_bool "$(ac_ini_get ui open_browser false)")"
+    AC_UI_OPEN_BROWSER="$(ac_parse_bool "$(ac_ini_get ui open_browser true)")"
     AC_UI_LANGUAGE="$(ac_normalize_language "$(ac_ini_get ui language '')")"
     if [ -z "$AC_RUNTIME_LANGUAGE" ]; then
         AC_RUNTIME_LANGUAGE="$AC_UI_LANGUAGE"
