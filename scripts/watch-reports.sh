@@ -1268,6 +1268,11 @@ refresh_current_status() {
             && ! has_active_research_tasks_for_command "$current_command_id" \
             && ! has_active_primary_tasks_for_command "$current_command_id"; then
             task_author_status="research_dispatching"
+        elif [ -n "$current_command_id" ] \
+            && ( has_active_research_tasks_for_command "$current_command_id" \
+                || has_active_primary_tasks_for_command "$current_command_id" \
+                || has_active_reviews_for_command "$current_command_id" ); then
+            task_author_status="inflight"
         else
             task_author_status="attention"
         fi

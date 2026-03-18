@@ -20,7 +20,6 @@ ac_ensure_role_manifest
 
 common_role="$(ac_role_path common)"
 coordinator_role="$(ac_role_path coordinator)"
-task_author_role="$(ac_role_path task_author)"
 
 send_plain() {
     local target="$1"
@@ -56,8 +55,5 @@ done < <(ac_worker_ids)
 
 ac_send_direct_message coordinator "${AC_RESET_COMMAND}
 $(ac_render_coordinator_boot_message "$common_role" "$coordinator_role")"
-
-ac_send_direct_message task_author "${AC_RESET_COMMAND}
-$(ac_render_task_author_boot_message "$common_role" "$task_author_role")"
 
 echo "agents launched"
