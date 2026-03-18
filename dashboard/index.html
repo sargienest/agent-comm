@@ -2687,7 +2687,6 @@
             const notes = [
                 `depends_on_count: ${item.depends_on_count ?? 0}`,
                 `result_artifact_path: ${toText(item.result_artifact_path, '-')}`,
-                `rework_note_path: ${toText(item.rework_note_path, '-')}`,
                 `rework_note_paths: ${toStringList(item.rework_note_paths).join(', ') || '-'}`,
                 `blocked_reason: ${toText(item.blocked_reason, '-')}`,
             ];
